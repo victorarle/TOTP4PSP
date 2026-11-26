@@ -167,7 +167,12 @@ main(int argc, char **argv)
         char clock[48];
         char footer[64];
         totp_clock(now, clock, sizeof(clock));
-        snprintf(footer, sizeof(footer), "%s   v" VERSION, clock);
+        snprintf(footer, sizeof(footer), "%s  v" VERSION, clock);
+        // Shrink the font if the line would run past the right edge
+        float footerWidth = intraFontMeasureText(ltn[6], footer);
+        float maxWidth = 480 - 2 * x_code;
+        if (footerWidth > maxWidth)
+            intraFontSetStyle(ltn[6], maxWidth / footerWidth, WHITE, 0U, 0.f, 0);
         intraFontPrint(ltn[6],x_code,20 + rows*22 - 4,footer);
 
         // End drawing

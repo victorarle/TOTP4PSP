@@ -55,7 +55,7 @@ otpauth://totp/<name2>?algorithm=SHA1&digits=6&issuer=<issuer2>&period=30&secret
 3. Ensure the system time of the PSP is correctly set in "Settings" > "Date & Time Settings", either set manually or via internet, and also paying attention to whether Daylight Saving Time is enabled. 
 4. Launch the app from the XMB as you would with any homebrew. The screen displays up to 12 OTP codes at once but you can scroll with Up/Down on the Dpad.
 
-*(v0.1.0)* The screen shows 11 codes at once; the last row is a footer such as `UTC 2026-11-26 04:08:54   next code in 6 s   v0.1.0`. Compare it with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it.
+*(v0.1.0)* The screen shows 11 codes at once; the last row is a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). Compare it with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it.
 
 The program only reads `OTPAUTH_KEYS`, so v0.0.1 and v0.1.0 can be installed side by side in different game folders (for example `ms0:/PSP/GAME/TOTP4PSP_V2/`). The XMB title of the fixed build is "TOTP 4 PSP v0.1.0".
 

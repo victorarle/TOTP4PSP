@@ -129,11 +129,11 @@ def parametros(esperado):
 
 def relogio(esperado):
     casos = [  # instante, rodapé certo (date -u -r <instante>)
-        (59, "UTC 1970-01-01 00:00:59   next code in 1 s"),
-        (60, "UTC 1970-01-01 00:01:00   next code in 30 s"),
-        (1111111109, "UTC 2005-03-18 01:58:29   next code in 1 s"),
-        (2000000000, "UTC 2033-05-18 03:33:20   next code in 10 s"),
-        (4102444800, "UTC 2100-01-01 00:00:00   next code in 30 s"),  # além de 2038
+        (59, "UTC 1970-01-01 00:00:59  1 s"),
+        (60, "UTC 1970-01-01 00:01:00  30 s"),
+        (1111111109, "UTC 2005-03-18 01:58:29  1 s"),
+        (2000000000, "UTC 2033-05-18 03:33:20  10 s"),
+        (4102444800, "UTC 2100-01-01 00:00:00  30 s"),  # além de 2038
     ]
     linhas, falhas = [], 0
     for t, certo in casos:

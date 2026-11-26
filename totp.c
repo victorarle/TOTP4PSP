@@ -202,8 +202,8 @@ totp_code(struct OTPKey *key, uint32_t counter, char out[7])
         strcpy(out, "------");
 }
 
-// Footer text: the UTC time the codes are computed from and how long the
-// current code still lasts. The PSP derives UTC from its local time, time zone
+// Footer text: the UTC time the codes are computed from and the seconds the
+// current code still lasts. Kept short: the PSP screen is 480 px wide. The PSP derives UTC from its local time, time zone
 // and DST setting; if any of them is wrong, this line is where it shows.
 void
 totp_clock(time_t now, char *out, size_t size)
@@ -212,5 +212,5 @@ totp_clock(time_t now, char *out, size_t size)
     char stamp[24];
     gmtime_r(&now, &utc);
     strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", &utc);
-    snprintf(out, size, "UTC %s   next code in %d s", stamp, (int)(TOTP_PERIOD - now % TOTP_PERIOD));
+    snprintf(out, size, "UTC %s  %d s", stamp, (int)(TOTP_PERIOD - now % TOTP_PERIOD));
 }
