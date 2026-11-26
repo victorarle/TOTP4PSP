@@ -144,6 +144,21 @@ main(int argc, char **argv)
             cur = cur->next;
         }
 
+        // Tell the user why the list is empty or short instead of a blank screen
+        if (head == NULL)
+        {
+            char nokeys[64];
+            sprintf(nokeys, "No keys found in %s", otpfile);
+            intraFontPrint(ltn[6],5,y-4,nokeys);
+            y += 22;
+        }
+        if (num_skipped_lines > 0 && shown < 12)
+        {
+            char skipmsg[48];
+            sprintf(skipmsg, "%d line(s) of the key file skipped", num_skipped_lines);
+            intraFontPrint(ltn[6],5,y-4,skipmsg);
+        }
+
         // End drawing
         sceGuFinish();
         sceGuSync(0,0);
