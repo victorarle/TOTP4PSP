@@ -25,7 +25,7 @@ Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPS
 
 Still not implemented: SHA256/SHA512, 8 digits, periods other than 30 s. Such accounts show `------` instead of a code.
 
-**Status:** tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP. The same 64-byte account shows a wrong code on the original v0.0.1; the footer's UTC time matches the computer's. The `EBOOT.PBP` in this repository is that tested v0.1.0 build (SHA-256 `1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`); the original v0.0.1 binary is in the history at tag `v0.0.1`.
+**Status:** tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP. The same 64-byte account shows a wrong code on the original v0.0.1; the footer's UTC time matches the computer's. The `EBOOT.PBP` in this repository is that tested v0.1.0 program with the XMB icon added (SHA-256 `3b5925816e7d44515564eaabcd32543331d4bcda2b4902549988ea2f70222ba0`; also checked on the PSP: icon shows, accounts match). Its program part is byte for byte the one in the first v0.1.0 build (`1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`, tag `v0.1.0`), which had no icon; the original v0.0.1 binary is in the history at tag `v0.0.1`.
 
 ## Prerequisites
 
@@ -80,7 +80,7 @@ Prerequisites: a working installation of the [PSPDEV toolchain](https://pspdev.g
 3. Verify that `psp-config --pspdev-path` answers in your current shell
 4. Run `make` and use the generated `EBOOT.PBP` for the steps in [Installation](#installation)
 
-The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository. The committed `totp_4_psp.elf` was built with `-ffile-prefix-map` so it carries no local paths; it strips to the same `EBOOT.PBP` byte for byte.
+The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository. The committed `totp_4_psp.elf` was built with `-ffile-prefix-map` so it carries no local paths; it strips to the same program (`DATA.PSP` inside the `EBOOT.PBP`) byte for byte.
 
 v0.1.0 was built with:
 
