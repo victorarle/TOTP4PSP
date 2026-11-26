@@ -113,6 +113,16 @@ All test secrets derive from the public RFC 6238 seed. Never commit a real secre
 
 The host test uses the host C library; the PSP uses newlib. It covers the logic, not the hardware.
 
+### Looking at the screen without a PSP
+
+```
+source env.sh && sh test/preview.sh
+```
+
+builds the program with `-DUI_PREVIEW`, runs it in [PPSSPP](https://www.ppsspp.org/) (macOS, 1.19.2) for 20 seconds and prints where the saved screens are. The preview build plays a fixed sequence of Up/Down presses and saves the screen once a second, so the pictures also show that the selection moves. It uses a temporary copy of the tree and a PPSSPP home directory of its own, and a key file made of the public RFC 6238 seed.
+
+The regular build does not start in PPSSPP 1.19.2: `flash0:/font` does not open there, and the bundled intraFont cannot read PPSSPP's own fonts. The preview build reads PPSSPP's fonts from the memory stick with the intraFont of the PSPDEV toolchain. Those are not the PSP's fonts, so the preview shows layout and behaviour, not the exact look of the text on a PSP.
+
 ## Credits and licenses
 
 TOTP4PSP exists because of the people below. Their code is used as published, with its licenses and headers untouched.

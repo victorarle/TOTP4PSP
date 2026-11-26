@@ -126,6 +126,26 @@ drawBackdrop(void)
     fillRect(0, FOOT_Y, 480, 1, WHITE_A(56), WHITE_A(56));
 }
 
+#ifdef UI_PREVIEW
+// Build with CC="psp-gcc -DUI_PREVIEW" to look at the screen in an emulator (see the README):
+// the fonts are read from ms0:/font and may be missing (shapes only, no text), a fixed
+// sequence of button presses is played, and the screen is saved to
+// ms0:/totp4psp-preview-N.png once a second.
+#define FONT_DIR "ms0:/font"
+static unsigned int
+previewButtons(int frame)
+{
+    if (frame == 60) return PSP_CTRL_DOWN;                    // one press
+    if (frame >= 120 && frame < 240) return PSP_CTRL_DOWN;    // held: runs to the last key
+    if (frame >= 300 && frame < 330) return PSP_CTRL_UP;      // held a little: a few keys back
+    return 0;
+}
+#endif
+
+#ifndef UI_PREVIEW
+#define FONT_DIR "flash0:/font"
+#endif
+
 // Key number `index` of the list, or NULL when there is none
 static struct OTPKey *
 keyAt(struct OTPKey *head, int index)
@@ -151,11 +171,13 @@ main(int argc, char **argv)
     char file[40];
     int i;
     for (i = 0; i <= 8; i += 4) {
-        sprintf(file,"flash0:/font/ltn%d.pgf",i); 
+        sprintf(file,FONT_DIR "/ltn%d.pgf",i);
         ltn[i] = intraFontLoad(file,INTRAFONT_CACHE_ALL);
     }
 
+#ifndef UI_PREVIEW
     if(!ltn[0] || !ltn[4] || !ltn[8]) sceKernelExitGame();
+#endif
 
     uint32_t counter = 0;
 
@@ -178,6 +200,10 @@ main(int argc, char **argv)
 
         // Up/Down move the selection, one key per press
         sceCtrlPeekBufferPositive(&buttonInput, 1);
+#ifdef UI_PREVIEW
+        static int frame = 0;
+        buttonInput.Buttons = previewButtons(frame++);
+#endif
         unsigned int pressed = buttonInput.Buttons & ~prevButtons;
         prevButtons = buttonInput.Buttons;
         int step = ((pressed & PSP_CTRL_DOWN) ? 1 : 0) - ((pressed & PSP_CTRL_UP) ? 1 : 0);
@@ -272,6 +298,13 @@ main(int argc, char **argv)
         // // Swap buffers
         sceDisplayWaitVblankStart();
         flipScreen();
+#ifdef UI_PREVIEW
+        if (frame % 60 == 59 && frame < 420)
+        {
+            sprintf(file, "ms0:/totp4psp-preview-%d.png", frame / 60);
+            saveImage(file, getVramDisplayBuffer(), SCREEN_WIDTH, SCREEN_HEIGHT, PSP_LINE_SIZE, 0);
+        }
+#endif
     }
 
     sceKernelExitGame();
