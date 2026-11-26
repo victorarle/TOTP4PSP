@@ -14,6 +14,7 @@
 #include "base32/base32.h"
 #include "totp.h"
 #include "common/callback.h"
+#include "digits.h"
 
 #include "intrafont031g/libraries/graphics.h"
 #include "intrafont031g/intraFont.h"
@@ -40,10 +41,9 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 
 // ---- Screen layout (480x272) ----
 // Font scales are for the PSP's own flash0 fonts; the place to tune how the text looks on the device.
-#define CODE_SCALE     2.4f   // code of the selected key (ltn4, bold)
+// The codes do not use them: they come from digits.h, drawn 1:1.
 #define NAME_SCALE     1.0f   // name of the selected key (ltn0)
 #define NB_SCALE       0.9f   // names of the neighbour keys (ltn0)
-#define NB_CODE_SCALE  1.0f   // codes of the neighbour keys (ltn4)
 #define SMALL_SCALE    0.9f   // header and footer (ltn8)
 
 #define MARGIN   24           // left and right text margin
@@ -128,6 +128,69 @@ drawRing(float frac, unsigned int color)
     }
 }
 
+// Digits drawn from a texture in digits.h, pixel for pixel: intraFont only has the PSP's small
+// bitmap fonts, and scaled up for the large code they turn blurry
+typedef struct
+{
+    const unsigned char *texture;
+    int texW, texH, stride, cellW, cellH, baseline, height;
+} DigitSet;
+
+static const DigitSet largeDigits = {digits_large, DIGITS_LARGE_TEX_W, DIGITS_LARGE_TEX_H, DIGITS_LARGE_STRIDE,
+                                     DIGITS_LARGE_CELL_W, DIGITS_LARGE_CELL_H, DIGITS_LARGE_BASELINE, DIGITS_LARGE_HEIGHT};
+static const DigitSet smallDigits = {digits_small, DIGITS_SMALL_TEX_W, DIGITS_SMALL_TEX_H, DIGITS_SMALL_STRIDE,
+                                     DIGITS_SMALL_CELL_W, DIGITS_SMALL_CELL_H, DIGITS_SMALL_BASELINE, DIGITS_SMALL_HEIGHT};
+
+// 4-bit coverage to white with that much alpha; the vertex colour tints it
+static unsigned int __attribute__((aligned(16))) digitClut[16];
+
+// Width of `text` in pixels: every character of DIGITS_CHARS takes a cell, a space half a cell
+static int
+digitsWidth(const DigitSet *set, const char *text)
+{
+    int w = 0;
+    for (; *text; text++)
+        w += (*text == ' ') ? set->cellW / 2 : set->cellW;
+    return w;
+}
+
+// Draws `text` with the top left corner of its first cell at (x, y)
+static void
+drawDigits(const DigitSet *set, int x, int y, const char *text, unsigned int color)
+{
+    typedef struct
+    {
+        float u, v;
+        unsigned int color;
+        float x, y, z;
+    } TexVertex;
+
+    TexVertex *v = (TexVertex *)sceGuGetMemory(2 * strlen(text) * sizeof(TexVertex));
+    int n = 0;
+    for (; *text; text++)
+    {
+        const char *found = strchr(DIGITS_CHARS, *text);
+        if (*text != ' ' && found != NULL)
+        {
+            float u = (found - DIGITS_CHARS) * set->cellW;
+            v[n++] = (TexVertex){u, 0, color, x, y, 0};
+            v[n++] = (TexVertex){u + set->cellW, set->cellH, color, x + set->cellW, y + set->cellH, 0};
+        }
+        x += (*text == ' ') ? set->cellW / 2 : set->cellW;
+    }
+
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGuClutMode(GU_PSM_8888, 0, 0xff, 0);
+    sceGuClutLoad(2, digitClut);
+    sceGuTexMode(GU_PSM_T4, 0, 0, 0);
+    sceGuTexImage(0, set->texW, set->texH, set->stride, set->texture);
+    sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
+    sceGuTexWrap(GU_CLAMP, GU_CLAMP);
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D, n, 0, v);
+}
+
 // Everything behind the text: backdrop, glass band, footer bar
 static void
 drawBackdrop(void)
@@ -194,17 +257,17 @@ main(int argc, char **argv)
     sceCtrlSetSamplingCycle(0);
 	sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
     
-    // Load the fonts in use: sans-serif large regular (0), large bold (4), small regular (8)
+    // Load the fonts in use: sans-serif large regular (0), small regular (8)
     intraFont* ltn[16] = {0};
     char file[40];
     int i;
-    for (i = 0; i <= 8; i += 4) {
+    for (i = 0; i <= 8; i += 8) {
         sprintf(file,FONT_DIR "/ltn%d.pgf",i);
         ltn[i] = intraFontLoad(file,INTRAFONT_CACHE_ALL);
     }
 
 #ifndef UI_PREVIEW
-    if(!ltn[0] || !ltn[4] || !ltn[8]) sceKernelExitGame();
+    if(!ltn[0] || !ltn[8]) sceKernelExitGame();
 #endif
 
     uint32_t counter = 0;
@@ -220,6 +283,8 @@ main(int argc, char **argv)
     char codes[SLOTS][8];
     uint32_t codesCounter = 0;
     int codesSelected = -1;
+    for (i = 0; i < 16; i++) digitClut[i] = WHITE_A(i * 17);
+    sceKernelDcacheWritebackAll();     // the GE reads the textures and the palette from memory
     initGraphics();
 
     while (isRunning())
@@ -297,8 +362,7 @@ main(int argc, char **argv)
             {
                 intraFontSetStyle(ltn[0], NAME_SCALE, WHITE_A(255), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
                 nameX = intraFontPrintColumn(ltn[0], nameX, BAND_Y + 23, RING_X - RING_OUT - 12 - MARGIN, key->name);
-                intraFontSetStyle(ltn[4], CODE_SCALE, WHITE_A(dim), SHADOW, 0.f, 0);
-                intraFontPrint(ltn[4], MARGIN - 2, BAND_Y + 68, code);
+                drawDigits(&largeDigits, MARGIN - 2, BAND_Y + 33, code, WHITE_A(dim));
             }
             else
             {
@@ -306,9 +370,8 @@ main(int argc, char **argv)
                 int alpha = (offset == 1 || offset == -1) ? 192 : 128;
                 float y = (offset < 0 ? BAND_Y + offset * ROW_H : BAND_Y + BAND_H + (offset - 1) * ROW_H) + 21;
 
-                intraFontSetStyle(ltn[4], NB_CODE_SCALE, WHITE_A(alpha * dim / 255), SHADOW, 0.f, INTRAFONT_ALIGN_RIGHT);
-                float codeWidth = intraFontMeasureText(ltn[4], code);
-                intraFontPrint(ltn[4], 480 - MARGIN, y, code);
+                int codeWidth = digitsWidth(&smallDigits, code);
+                drawDigits(&smallDigits, 480 - MARGIN - codeWidth, y - smallDigits.baseline, code, WHITE_A(alpha * dim / 255));
                 // A name that does not fit is cut at the code column
                 intraFontSetStyle(ltn[0], NB_SCALE, WHITE_A(alpha), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
                 intraFontPrintColumn(ltn[0], MARGIN, y, 480 - 2 * MARGIN - codeWidth - 16, key->name);
@@ -318,8 +381,10 @@ main(int argc, char **argv)
         // Seconds left, inside the ring
         if (head != NULL)
         {
-            intraFontSetStyle(ltn[4], NB_CODE_SCALE, ringColor, SHADOW, 0.f, INTRAFONT_ALIGN_CENTER);
-            intraFontPrintf(ltn[4], RING_X, RING_Y + 6, "%d", secondsLeft);
+            char secs[4];
+            snprintf(secs, sizeof(secs), "%d", secondsLeft);
+            drawDigits(&smallDigits, RING_X - digitsWidth(&smallDigits, secs) / 2,
+                       RING_Y - smallDigits.baseline + smallDigits.height / 2, secs, ringColor);
         }
 
         // Tell the user why the list is empty instead of a blank screen

@@ -138,6 +138,7 @@ TOTP4PSP exists because of the people below. Their code is used as published, wi
 | Creytiv.com | `hmac_sha1.c`, the HMAC implementation inside that submodule (2010) | per its header |
 | Steve Reid and James H. Brown | `sha1.c`, SHA-1, inside that submodule | public domain, per its header |
 | Markus Gutschke / Google Inc. | [Base32 implementation](https://github.com/google/google-authenticator-libpam/tree/master/src), `base32/` (2010) | Apache 2.0, per its headers |
+| Adobe | The digits of the codes (added after v0.1.0): 0-9 and "-" of [Source Sans Pro](https://github.com/adobe-fonts/source-sans) Bold 1.050, rasterized into `digits.h` by `tools/gen_digits.swift`. The font file itself is not in this repository | SIL Open Font License 1.1 |
 | The [PSPDEV](https://pspdev.github.io/) community | The toolchain and PSPSDK (`build.mak`, `libpng`, `zlib`) the program is built with | their respective licenses |
 
 Files without an author header upstream: `common/callback.*`, `intrafont031g/libraries/graphics.*` and `framebuffer.*`. Their origin is not stated in the original repository; if you recognise it, please open an issue so the credit can be added. The only change this fork made to any of them is the `#include <string.h>` line in `graphics.c`.
