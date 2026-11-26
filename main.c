@@ -47,15 +47,14 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define SMALL_SCALE    0.9f   // header and footer (ltn8)
 
 #define MARGIN   24           // left and right text margin
-#define BAND_Y   96           // glass band of the selected key
-#define BAND_H   80
+#define LIST_Y   36           // top of the list: SLOTS keys, the selected one in the glass band
+#define BAND_H   80           // height of the band
+#define ROW_H    30           // height of every other row
+#define SLOTS    5            // keys on screen
 #define FOOT_Y   250          // footer bar
-#define ROW_H    30           // neighbour rows, two above and two below the band
-#define SLOTS    5            // keys on screen: the selected one and two each side
 
 // Countdown ring, at the right end of the band
 #define RING_X        422
-#define RING_Y        (BAND_Y + BAND_H / 2)
 #define RING_IN       22
 #define RING_OUT      28
 #define LAST_SECONDS  5       // the ring turns amber when this few seconds are left
@@ -114,7 +113,7 @@ fillRing(float cx, float cy, float r_in, float r_out, float frac, unsigned int i
 // The countdown ring: a dark track with `frac` of it lit, shrinking towards 12 o'clock.
 // The GU does not smooth edges, so each ring gets a 1 px rim that fades out.
 static void
-drawRing(float frac, unsigned int color)
+drawRing(float cy, float frac, unsigned int color)
 {
     const unsigned int colors[2] = {BLACK_A(77), color};
     const float fracs[2] = {1.0f, frac};
@@ -122,9 +121,9 @@ drawRing(float frac, unsigned int color)
     for (i = 0; i < 2; i++)
     {
         unsigned int clear = colors[i] & 0x00FFFFFF;
-        fillRing(RING_X, RING_Y, RING_IN - 1, RING_IN, fracs[i], clear, colors[i]);
-        fillRing(RING_X, RING_Y, RING_IN, RING_OUT, fracs[i], colors[i], colors[i]);
-        fillRing(RING_X, RING_Y, RING_OUT, RING_OUT + 1, fracs[i], colors[i], clear);
+        fillRing(RING_X, cy, RING_IN - 1, RING_IN, fracs[i], clear, colors[i]);
+        fillRing(RING_X, cy, RING_IN, RING_OUT, fracs[i], colors[i], colors[i]);
+        fillRing(RING_X, cy, RING_OUT, RING_OUT + 1, fracs[i], colors[i], clear);
     }
 }
 
@@ -191,9 +190,9 @@ drawDigits(const DigitSet *set, int x, int y, const char *text, unsigned int col
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D, n, 0, v);
 }
 
-// Everything behind the text: backdrop, glass band, footer bar
+// Everything behind the text: backdrop, glass band at `bandY`, footer bar
 static void
-drawBackdrop(void)
+drawBackdrop(float bandY)
 {
     const unsigned int top = RGBA(0x05, 0x28, 0x3a, 255);
     const unsigned int mid = RGBA(0x0c, 0x62, 0x73, 255);
@@ -210,10 +209,10 @@ drawBackdrop(void)
     fillRing(90, 260, 0, 210, 1.0f, RGBA(150, 255, 220, 56), RGBA(150, 255, 220, 0));
 
     // Glass band: brighter upper half, a light edge above and a faint one below
-    fillRect(0, BAND_Y, 480, BAND_H / 2, WHITE_A(92), WHITE_A(43));
-    fillRect(0, BAND_Y + BAND_H / 2, 480, BAND_H / 2, WHITE_A(26), WHITE_A(26));
-    fillRect(0, BAND_Y, 480, 1, WHITE_A(115), WHITE_A(115));
-    fillRect(0, BAND_Y + BAND_H - 1, 480, 1, WHITE_A(46), WHITE_A(46));
+    fillRect(0, bandY, 480, BAND_H / 2, WHITE_A(92), WHITE_A(43));
+    fillRect(0, bandY + BAND_H / 2, 480, BAND_H / 2, WHITE_A(26), WHITE_A(26));
+    fillRect(0, bandY, 480, 1, WHITE_A(115), WHITE_A(115));
+    fillRect(0, bandY + BAND_H - 1, 480, 1, WHITE_A(46), WHITE_A(46));
 
     fillRect(0, FOOT_Y, 480, 272 - FOOT_Y, BLACK_A(77), BLACK_A(77));
     fillRect(0, FOOT_Y, 480, 1, WHITE_A(56), WHITE_A(56));
@@ -282,7 +281,7 @@ main(int argc, char **argv)
     // Codes on screen ("123 456"), computed again only when the time step or the selection changes
     char codes[SLOTS][8];
     uint32_t codesCounter = 0;
-    int codesSelected = -1;
+    int codesFirst = -1;
     for (i = 0; i < 16; i++) digitClut[i] = WHITE_A(i * 17);
     sceKernelDcacheWritebackAll();     // the GE reads the textures and the palette from memory
     initGraphics();
@@ -320,8 +319,17 @@ main(int argc, char **argv)
             nameX = MARGIN;
         }
 
-        drawBackdrop();
-        if (head != NULL) drawRing(left / TOTP_PERIOD, ringColor);
+        // The list shows SLOTS keys from `first` on. The selected key stays in the middle row
+        // unless that would leave rows empty at the start or the end of the list: there the
+        // band moves up or down instead.
+        int first = selected - SLOTS / 2;
+        if (first > num_otp_keys - SLOTS) first = num_otp_keys - SLOTS;
+        if (first < 0) first = 0;
+        float bandY = LIST_Y + (head != NULL ? selected - first : SLOTS / 2) * ROW_H;
+        float ringY = bandY + BAND_H / 2;
+
+        drawBackdrop(bandY);
+        if (head != NULL) drawRing(ringY, left / TOTP_PERIOD, ringColor);
 
         // Header: title and position in the list
         intraFontSetStyle(ltn[8], SMALL_SCALE, WHITE_A(217), SHADOW, 0.f, 0);
@@ -334,25 +342,25 @@ main(int argc, char **argv)
 
         // "123456" is shown as "123 456"; a key that is not supported comes as "------" and shows "--- ---"
         int slot;
-        if (counter != codesCounter || selected != codesSelected)
+        if (counter != codesCounter || first != codesFirst)
         {
             for (slot = 0; slot < SLOTS; slot++)
             {
-                struct OTPKey *key = keyAt(head, selected + slot - SLOTS / 2);
+                struct OTPKey *key = keyAt(head, first + slot);
                 char raw[7];
                 if (key == NULL) continue;
                 totp_code(key, counter, raw);
                 snprintf(codes[slot], sizeof(codes[slot]), "%.3s %s", raw, raw + 3);
             }
             codesCounter = counter;
-            codesSelected = selected;
+            codesFirst = first;
         }
 
-        // The selected key sits in the band, two neighbours above and two below it
+        // The selected key in the band, the others in rows above and below it
         for (slot = 0; slot < SLOTS; slot++)
         {
-            int offset = slot - SLOTS / 2;
-            struct OTPKey *key = keyAt(head, selected + offset);
+            int offset = first + slot - selected;
+            struct OTPKey *key = keyAt(head, first + slot);
             if (key == NULL) continue;
 
             const char *code = codes[slot];
@@ -361,14 +369,14 @@ main(int argc, char **argv)
             if (offset == 0)
             {
                 intraFontSetStyle(ltn[0], NAME_SCALE, WHITE_A(255), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
-                nameX = intraFontPrintColumn(ltn[0], nameX, BAND_Y + 23, RING_X - RING_OUT - 12 - MARGIN, key->name);
-                drawDigits(&largeDigits, MARGIN - 2, BAND_Y + 33, code, WHITE_A(dim));
+                nameX = intraFontPrintColumn(ltn[0], nameX, bandY + 23, RING_X - RING_OUT - 12 - MARGIN, key->name);
+                drawDigits(&largeDigits, MARGIN - 2, bandY + 33, code, WHITE_A(dim));
             }
             else
             {
                 // Rows next to the band are brighter than the outer ones
                 int alpha = (offset == 1 || offset == -1) ? 192 : 128;
-                float y = (offset < 0 ? BAND_Y + offset * ROW_H : BAND_Y + BAND_H + (offset - 1) * ROW_H) + 21;
+                float y = (offset < 0 ? bandY + offset * ROW_H : bandY + BAND_H + (offset - 1) * ROW_H) + 21;
 
                 int codeWidth = digitsWidth(&smallDigits, code);
                 drawDigits(&smallDigits, 480 - MARGIN - codeWidth, y - smallDigits.baseline, code, WHITE_A(alpha * dim / 255));
@@ -384,15 +392,15 @@ main(int argc, char **argv)
             char secs[4];
             snprintf(secs, sizeof(secs), "%d", secondsLeft);
             drawDigits(&smallDigits, RING_X - digitsWidth(&smallDigits, secs) / 2,
-                       RING_Y - smallDigits.baseline + smallDigits.height / 2, secs, ringColor);
+                       ringY - smallDigits.baseline + smallDigits.height / 2, secs, ringColor);
         }
 
         // Tell the user why the list is empty instead of a blank screen
         if (head == NULL)
         {
             intraFontSetStyle(ltn[0], NB_SCALE, WHITE_A(255), SHADOW, 0.f, 0);
-            intraFontPrint(ltn[0], MARGIN, BAND_Y + 34, "No keys found in");
-            intraFontPrint(ltn[0], MARGIN, BAND_Y + 58, otpfile);
+            intraFontPrint(ltn[0], MARGIN, bandY + 34, "No keys found in");
+            intraFontPrint(ltn[0], MARGIN, bandY + 58, otpfile);
         }
 
         // Footer: the UTC time in use, to compare with a trusted clock; skipped lines; the version
