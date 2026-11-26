@@ -44,7 +44,8 @@ sample=$(head -n 1 "$src/OTPAUTH_KEYS")
     done
     echo "$sample" | sed "s|totp/[^?]*|totp/Cofre Antigo (SHA256)|; s|SHA1|SHA256|"
     echo "this line is not a key"
-    for name in "Loja Pixel" "Arena Orbe: a.rather.long.account.name@example.invalid (primary)" "Forum Mare" "Wiki Estudio"; do
+    # percent-encoded, as exported URIs are: "Arena Orbe:a.rather...", "Forum Maré"
+    for name in "Loja Pixel" "Arena%20Orbe%3Aa.rather.long.account.name%40example.invalid" "Forum%20Mar%C3%A9" "Wiki Estudio"; do
         echo "$sample" | sed "s|totp/[^?]*|totp/$name|"
     done
     echo "otpauth://hotp/not-totp"

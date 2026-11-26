@@ -72,6 +72,10 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define REPEAT_DELAY  24
 #define REPEAT_EVERY  7
 
+// A PSP whose clock was reset shows a date years in the past, and every code is wrong with it.
+// No date before this program existed can be right: the footer flags it.
+#define CLOCK_PLAUSIBLE 1735689600   // 2025-01-01 00:00 UTC
+
 // Colours are 0xAABBGGRR
 #define RGBA(r, g, b, a) ((unsigned int)(a) << 24 | (unsigned int)(b) << 16 | (unsigned int)(g) << 8 | (unsigned int)(r))
 #define WHITE_A(a)  RGBA(255, 255, 255, a)
@@ -456,6 +460,8 @@ main(int argc, char **argv)
         totp_clock(now, clock, sizeof(clock));
         char *seconds = strstr(clock, "  ");   // drop the seconds left: the ring shows them
         if (seconds != NULL) *seconds = '\0';
+        int clockWrong = now < CLOCK_PLAUSIBLE;
+        if (clockWrong) strcat(clock, "  clock not set?");
         if (num_skipped_lines > 0)
             sprintf(skipmsg, "%d line(s) skipped", num_skipped_lines);
         // Shrink the font if the three parts would not fit side by side
@@ -466,7 +472,7 @@ main(int argc, char **argv)
                         + gap + intraFontMeasureText(ltn[8], "v" VERSION);
         float maxWidth = 480 - 2 * MARGIN;
         if (footWidth > maxWidth) footScale *= maxWidth / footWidth;
-        intraFontSetStyle(ltn[8], footScale, WHITE_A(255), SHADOW, 0.f, 0);
+        intraFontSetStyle(ltn[8], footScale, clockWrong ? AMBER : WHITE_A(255), SHADOW, 0.f, 0);
         float x = intraFontPrint(ltn[8], MARGIN, FOOT_Y + 16, clock);
         intraFontSetStyle(ltn[8], footScale, AMBER, SHADOW, 0.f, 0);
         intraFontPrint(ltn[8], x + gap, FOOT_Y + 16, skipmsg);
