@@ -170,9 +170,7 @@ previewButtons(int frame)
     if (frame >= 300 && frame < 330) return PSP_CTRL_UP;      // held a little: a few keys back
     return 0;
 }
-#endif
-
-#ifndef UI_PREVIEW
+#else
 #define FONT_DIR "flash0:/font"
 #endif
 
@@ -327,10 +325,9 @@ main(int argc, char **argv)
         // Tell the user why the list is empty instead of a blank screen
         if (head == NULL)
         {
-            char nokeys[64];
-            sprintf(nokeys, "No keys found in %s", otpfile);
-            intraFontSetStyle(ltn[0], NB_SCALE, WHITE_A(255), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
-            nameX = intraFontPrintColumn(ltn[0], nameX, BAND_Y + BAND_H / 2 + 6, 480 - 2 * MARGIN, nokeys);
+            intraFontSetStyle(ltn[0], NB_SCALE, WHITE_A(255), SHADOW, 0.f, 0);
+            intraFontPrint(ltn[0], MARGIN, BAND_Y + 34, "No keys found in");
+            intraFontPrint(ltn[0], MARGIN, BAND_Y + 58, otpfile);
         }
 
         // Footer: the UTC time in use, to compare with a trusted clock; skipped lines; the version
