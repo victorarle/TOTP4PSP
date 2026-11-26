@@ -97,6 +97,11 @@ parseOTPLine(char *line)
     if (sec == NULL)
         return NULL;
 
+    // Base32 padding is not part of the key: cut at the first '='
+    char *pad = strchr(sec, '=');
+    if (pad != NULL)
+        *pad = '\0';
+
     // Secret is Base32 string, so must first decode back to normal string
     // Base32 uses 5 bits per character, but also must be multiple of 40 bits length
     uint32_t decodedSize = ((strlen(sec) + 1) * 8 + 4) / 5;
