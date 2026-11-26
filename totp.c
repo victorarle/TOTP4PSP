@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 
 #include "totp.h"
 #include "hmac-sha1/src/hmac/hmac.h"
@@ -15,7 +16,7 @@ int num_skipped_lines = 0;
 
 // Defaults when the URI leaves a parameter out
 #define DEFAULT_DIGITS 6
-#define DEFAULT_PERIOD 30
+#define DEFAULT_PERIOD TOTP_PERIOD
 
 // Number from a URI parameter; 0 (never valid here) when it is not 1..255
 static uint8_t
@@ -199,4 +200,17 @@ totp_code(struct OTPKey *key, uint32_t counter, char out[7])
         snprintf(out, 7, "%06lu", (unsigned long)mod_hotp(calcToken(key, counter)));
     else
         strcpy(out, "------");
+}
+
+// Footer text: the UTC time the codes are computed from and how long the
+// current code still lasts. The PSP derives UTC from its local time, time zone
+// and DST setting; if any of them is wrong, this line is where it shows.
+void
+totp_clock(time_t now, char *out, size_t size)
+{
+    struct tm utc;
+    char stamp[24];
+    gmtime_r(&now, &utc);
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", &utc);
+    snprintf(out, size, "UTC %s   next code in %d s", stamp, (int)(TOTP_PERIOD - now % TOTP_PERIOD));
 }

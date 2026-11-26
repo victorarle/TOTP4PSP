@@ -127,6 +127,26 @@ def parametros(esperado):
     return linhas, falhas
 
 
+def relogio(esperado):
+    casos = [  # instante, rodapé certo (date -u -r <instante>)
+        (59, "UTC 1970-01-01 00:00:59   next code in 1 s"),
+        (60, "UTC 1970-01-01 00:01:00   next code in 30 s"),
+        (1111111109, "UTC 2005-03-18 01:58:29   next code in 1 s"),
+        (2000000000, "UTC 2033-05-18 03:33:20   next code in 10 s"),
+        (4102444800, "UTC 2100-01-01 00:00:00   next code in 30 s"),  # além de 2038
+    ]
+    linhas, falhas = [], 0
+    for t, certo in casos:
+        p = subprocess.run([HOST, "--clock", str(t)], capture_output=True, env=ENV)
+        saida = p.stdout.decode().strip()
+        real = "ok" if p.returncode == 0 and saida == certo else "falha"
+        quer = "ok" if esperado == "corrigido" else "falha"  # o v0.0.1 não tem rodapé
+        bate = real == quer
+        falhas += not bate
+        linhas.append(f"{'ok ' if bate else 'XX '} t={t:<11} real={real:<5} esperado={quer:<5} {'' if real == 'ok' else repr(saida)[:60]}")
+    return linhas, falhas
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--esperado", choices=("v0.0.1", "corrigido"), default="corrigido")
@@ -137,7 +157,7 @@ if __name__ == "__main__":
     else:
         subprocess.run(["make", "-C", AQUI], check=True, capture_output=True)
     total = 0
-    for titulo, f in (("Matriz de tamanhos (RFC 6238, 4 instantes cada)", matriz), ("Linhas malformadas", malformadas), ("Parâmetros da URI", parametros)):
+    for titulo, f in (("Matriz de tamanhos (RFC 6238, 4 instantes cada)", matriz), ("Linhas malformadas", malformadas), ("Parâmetros da URI", parametros), ("Rodapé com a hora UTC", relogio)):
         ls, fl = f(a.esperado)
         print(f"\n{titulo}  [esperado: {a.esperado}]")
         print("\n".join(ls))

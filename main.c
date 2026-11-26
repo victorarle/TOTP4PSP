@@ -85,6 +85,9 @@ main(int argc, char **argv)
     int vscroll_offset = 0;
     initGraphics();
 
+    // Rows of keys per screen; the row below them is the clock footer
+    const int rows = 11;
+
 
     while (isRunning())
     {
@@ -100,7 +103,7 @@ main(int argc, char **argv)
 
         time_t now = 0;
         sceKernelLibcTime(&now);
-        counter = now / 30;
+        counter = now / TOTP_PERIOD;
         // printf(" Next Refresh: %lld s \n", 30 - (now % 30));
         // printf(" Counter: %ld, ts: %lld \n", counter, now);
         // printf("\n");
@@ -122,7 +125,7 @@ main(int argc, char **argv)
                 if (vscroll_offset > 0) vscroll_offset -= 1;
             }
 			if(buttonInput.Buttons & PSP_CTRL_DOWN) {
-                if (vscroll_offset < (num_otp_keys - 12)) vscroll_offset += 1;
+                if (vscroll_offset < (num_otp_keys - rows)) vscroll_offset += 1;
             }
         }
 
@@ -131,7 +134,7 @@ main(int argc, char **argv)
             curpos += 1;
         }
         
-        while (cur != NULL && shown < 12)
+        while (cur != NULL && shown < rows)
         {   
             char strcode[7];
             totp_code(cur, counter, strcode);
@@ -152,12 +155,17 @@ main(int argc, char **argv)
             intraFontPrint(ltn[6],5,y-4,nokeys);
             y += 22;
         }
-        if (num_skipped_lines > 0 && shown < 12)
+        if (num_skipped_lines > 0 && shown < rows)
         {
             char skipmsg[48];
             sprintf(skipmsg, "%d line(s) of the key file skipped", num_skipped_lines);
             intraFontPrint(ltn[6],5,y-4,skipmsg);
         }
+
+        // Footer: the UTC time in use, to compare with a trusted clock
+        char clock[48];
+        totp_clock(now, clock, sizeof(clock));
+        intraFontPrint(ltn[6],x_code,20 + rows*22 - 4,clock);
 
         // End drawing
         sceGuFinish();
