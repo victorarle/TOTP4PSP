@@ -9,7 +9,7 @@ The user must provide their own OTPAUTH_KEYS file with each line as a seperate T
 
 Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPSFSC-k?t=2512s
 
-> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes, released as **v0.1.0**. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
+> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1). **v0.1.0** fixed the bugs listed below; **v0.2.0** redraws the screen around one selected key, with large sharp digits, a countdown ring and analog stick support (see step 4 of [Installation](#installation)). The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* or *(v0.2.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
 
 ## What v0.1.0 fixes
 
@@ -25,7 +25,7 @@ Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPS
 
 Still not implemented: SHA256/SHA512, 8 digits, periods other than 30 s. Such accounts show `------` instead of a code.
 
-**Status:** tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP. The same 64-byte account shows a wrong code on the original v0.0.1; the footer's UTC time matches the computer's. The `EBOOT.PBP` in this repository is that tested v0.1.0 program with the XMB icon added (SHA-256 `3b5925816e7d44515564eaabcd32543331d4bcda2b4902549988ea2f70222ba0`; also checked on the PSP: icon shows, accounts match). Its program part is byte for byte the one in the first v0.1.0 build (`1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`, tag `v0.1.0`), which had no icon; the original v0.0.1 binary is in the history at tag `v0.0.1`.
+**Status:** v0.1.0 was tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP. The same 64-byte account shows a wrong code on the original v0.0.1; the footer's UTC time matches the computer's. v0.2.0 was tested on the same PSP on 2026-11-26: the accounts match, and the new screen, the D-pad, the analog stick and the slide work. The `EBOOT.PBP` in this repository is v0.2.0 (SHA-256 `@HASH@`); it differs from the build checked on the PSP only in the version number shown on screen and in the XMB. The code computation and key file reading are the same as in v0.1.0. Earlier binaries are in the history at tags `v0.1.0` (`1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`, no icon) and `v0.0.1`.
 
 ## Prerequisites
 
@@ -55,11 +55,11 @@ otpauth://totp/<name2>?algorithm=SHA1&digits=6&issuer=<issuer2>&period=30&secret
 3. Ensure the system time of the PSP is correctly set in "Settings" > "Date & Time Settings", either set manually or via internet, and also paying attention to whether Daylight Saving Time is enabled. 
 4. Launch the app from the XMB as you would with any homebrew. The screen displays up to 12 OTP codes at once but you can scroll with Up/Down on the Dpad.
 
-*(after v0.1.0, not released yet)* The screen is built around one selected key: its name and code, in large digits, sit in a highlighted band, with a ring that empties as the code runs out (the number inside is the seconds left; ring and number turn amber for the last 5). Five keys are on screen; the others are listed smaller above and below the band. The band stays in the middle row, except near the start and the end of the list, where it moves up or down so that no row is left empty. Up/Down on the Dpad or the analog stick select the next key, and the band slides to it; hold to move faster. The top right corner shows the position in the list. The footer shows the UTC time in use, how many lines of the key file were skipped (if any) and the version.
+*(v0.2.0)* The screen is built around one selected key: its name and code, in large digits, sit in a highlighted band, with a ring that empties as the code runs out (the number inside is the seconds left; ring and number turn amber for the last 5). Five keys are on screen; the others are listed smaller above and below the band. The band stays in the middle row, except near the start and the end of the list, where it moves up or down so that no row is left empty. Up/Down on the Dpad or the analog stick select the next key, and the band slides to it; hold to move faster. The top right corner shows the position in the list. The footer shows the UTC time in use, how many lines of the key file were skipped (if any) and the version.
 
-*(v0.1.0)* The screen shows 11 codes at once; the last row is a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). Compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it.
+*(v0.1.0)* The screen showed 11 codes at once; the last row was a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). In either version, compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it.
 
-The program only reads `OTPAUTH_KEYS`, so v0.0.1 and v0.1.0 can be installed side by side in different game folders (for example `ms0:/PSP/GAME/TOTP4PSP_V2/`). The XMB title of the fixed build is "TOTP 4 PSP v0.1.0".
+The program only reads `OTPAUTH_KEYS`, so different versions can be installed side by side in different game folders (for example `ms0:/PSP/GAME/TOTP4PSP_V2/`). The XMB title shows the version, for example "TOTP 4 PSP v0.2.0".
 
 ## OTP Parameters
 
@@ -84,7 +84,7 @@ Prerequisites: a working installation of the [PSPDEV toolchain](https://pspdev.g
 
 The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository. The committed `totp_4_psp.elf` was built with `-ffile-prefix-map` so it carries no local paths; it strips to the same program (`DATA.PSP` inside the `EBOOT.PBP`) byte for byte.
 
-v0.1.0 was built with:
+v0.1.0 and v0.2.0 were built with:
 
 | | |
 |---|---|
@@ -94,6 +94,8 @@ v0.1.0 was built with:
 | Host | macOS on Apple Silicon |
 
 `libpng` and `zlib` come with that package. The build is warning-free; it needed one added line, `#include <string.h>` in `intrafont031g/libraries/graphics.c`, because GCC 14 and newer reject the implicit `memset` and `strlen` it relied on.
+
+*(v0.2.0)* `digits.h`, the texture of the digits on screen, is committed; building does not need the font. To change it, run `swift tools/gen_digits.swift SourceSansPro-Bold.otf > digits.h` on macOS.
 
 ## Tests
 
@@ -138,12 +140,12 @@ TOTP4PSP exists because of the people below. Their code is used as published, wi
 | Creytiv.com | `hmac_sha1.c`, the HMAC implementation inside that submodule (2010) | per its header |
 | Steve Reid and James H. Brown | `sha1.c`, SHA-1, inside that submodule | public domain, per its header |
 | Markus Gutschke / Google Inc. | [Base32 implementation](https://github.com/google/google-authenticator-libpam/tree/master/src), `base32/` (2010) | Apache 2.0, per its headers |
-| Adobe | The digits of the codes (added after v0.1.0): 0-9 and "-" of [Source Sans Pro](https://github.com/adobe-fonts/source-sans) Bold 1.050, rasterized into `digits.h` by `tools/gen_digits.swift`. The font file itself is not in this repository | SIL Open Font License 1.1 |
+| Adobe | The digits of the codes (v0.2.0): 0-9 and "-" of [Source Sans Pro](https://github.com/adobe-fonts/source-sans) Bold 1.050, rasterized into `digits.h` by `tools/gen_digits.swift`. The font file itself is not in this repository | SIL Open Font License 1.1 |
 | The [PSPDEV](https://pspdev.github.io/) community | The toolchain and PSPSDK (`build.mak`, `libpng`, `zlib`) the program is built with | their respective licenses |
 
 Files without an author header upstream: `common/callback.*`, `intrafont031g/libraries/graphics.*` and `framebuffer.*`. Their origin is not stated in the original repository; if you recognise it, please open an issue so the credit can be added. The only change this fork made to any of them is the `#include <string.h>` line in `graphics.c`.
 
-**Changes in this fork (v0.1.0):** the fixes, the split into `totp.c`/`totp.h`, the host tests, the footer and this documentation, by Victor Arlé, released under the same ISC license as the original program. The `LICENSE` file is unchanged; keep its copyright notice with every copy.
+**Changes in this fork:** the fixes, the split into `totp.c`/`totp.h`, the host tests, the footer and this documentation (v0.1.0), and the new screen, `tools/gen_digits.swift` and the preview build (v0.2.0), by Victor Arlé, released under the same ISC license as the original program. The `LICENSE` file is unchanged; keep its copyright notice with every copy.
 
 **Icon (added after v0.1.0):** `ICON0.PNG`, the 144×80 picture the XMB shows for the program, is original artwork for this fork. It is made of plain shapes drawn by a script, with no font and no third-party artwork; the script was written with Claude, Anthropic's AI assistant, and Victor Arlé chose the design. It is released under the same ISC license as the fork's other changes.
 
@@ -152,4 +154,4 @@ The specifications behind the program: [RFC 6238](https://www.rfc-editor.org/rfc
 ## Contact
 The original author: please reach out at arcyleung@gmail.com for feature requests or consider supporting his work over at [ko-fi](https://ko-fi.com/arcyleung).
 
-For anything specific to v0.1.0, open an issue on this fork.
+For anything specific to this fork, open an issue here.

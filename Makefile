@@ -13,7 +13,7 @@ LIBS = -lpspgum -lpspgu -lpng -lz -lm
 LDFLAGS = 
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = TOTP 4 PSP v0.1.0
+PSP_EBOOT_TITLE = TOTP 4 PSP v0.2.0
 PSP_EBOOT_ICON = ICON0.PNG
 
 PSPSDK=$(shell psp-config --pspsdk-path)

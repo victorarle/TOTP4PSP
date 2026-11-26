@@ -21,7 +21,7 @@
 
 #define VERS 1 // version
 #define REVS 0 // revision
-#define VERSION "0.1.0" // shown in the footer; keep in sync with PSP_EBOOT_TITLE in the Makefile
+#define VERSION "0.2.0" // shown in the footer; keep in sync with PSP_EBOOT_TITLE in the Makefile
 
 PSP_MODULE_INFO("TOTP", PSP_MODULE_USER, VERS, REVS);
 PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
