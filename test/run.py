@@ -118,6 +118,11 @@ def parameters(expect):
         ("period=60", line(["algorithm=SHA1", "digits=6", "period=60"]), "P ------\n", "fail"),
         # "nx" has the same 8-bit hash as "secret" (defect 9): it must be ignored
         ("name hashing like secret", line(["algorithm=SHA1", "digits=6", "period=30"], ["nx=!!!!!!!!"]), "P 287082\n", "fail"),
+        # Names are percent-encoded in exported URIs ("Issuer:me@example.com" below); UTF-8 bytes pass through
+        ("percent-encoded name", URI.format(n="Issuer%3Ame%40example.com", s=B32).encode() + b"\n", "Issuer:me@example.com 287082\n", "fail"),
+        ("percent-encoded UTF-8", URI.format(n="Caf%C3%A9", s=B32).encode() + b"\n", "Caf\u00e9 287082\n", "fail"),
+        # Not a valid escape: kept as written; %00 would cut the name short, so it is kept too
+        ("bad or %00 escapes", URI.format(n="A%2G%%00%4", s=B32).encode() + b"\n", "A%2G%%00%4 287082\n", "ok"),
     ]
     return report(cases, expect, [], 0)
 

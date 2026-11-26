@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 #include <strings.h>
 #include <time.h>
 
@@ -24,6 +25,28 @@ parseByte(const char *value)
 {
     long v = strtol(value, NULL, 10);
     return (v < 1 || v > 255) ? 0 : (uint8_t)v;
+}
+
+// Decode %XX escapes in place, as in the label and the values of an exported URI
+// ("Issuer%3Ame%40example.com"). An invalid escape is kept as written, and so is %00,
+// which would end the string early.
+static void
+percentDecode(char *s)
+{
+    char *out = s;
+    for (; *s; s++)
+    {
+        unsigned int byte;
+        if (s[0] == '%' && isxdigit((unsigned char)s[1]) && isxdigit((unsigned char)s[2])
+            && sscanf(s + 1, "%2x", &byte) == 1 && byte != 0)
+        {
+            *out++ = (char)byte;
+            s += 2;
+        }
+        else
+            *out++ = *s;
+    }
+    *out = '\0';
 }
 
 #define PREFIX "otpauth://totp/"
@@ -97,12 +120,16 @@ parseOTPLine(char *line)
 
     struct OTPKey *key = calloc(1, sizeof(struct OTPKey));
     key->name = strdup(line + PREFIX_LEN);
+    percentDecode(key->name);
     if (alg != NULL)
         key->algorithm = strdup(alg);
     key->digits = dig;
     key->period = per;
     if (iss != NULL)
+    {
         key->issuer = strdup(iss);
+        percentDecode(key->issuer);
+    }
     key->secret = secret;
     key->secret_len = secretLen;
     return key;

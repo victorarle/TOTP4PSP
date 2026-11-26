@@ -288,6 +288,8 @@ main(int argc, char **argv)
 #ifndef UI_PREVIEW
     if(!ltn[0] || !ltn[8]) sceKernelExitGame();
 #endif
+    // Account names are UTF-8 once their %XX escapes are decoded ("Caf%C3%A9")
+    intraFontSetEncoding(ltn[0], INTRAFONT_STRING_UTF8);
 
     uint32_t counter = 0;
 
