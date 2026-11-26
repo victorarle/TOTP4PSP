@@ -3,7 +3,7 @@ OBJS = main.o ./hmac-sha1/src/hmac/hmac_sha1.o ./hmac-sha1/src/sha/sha1.o ./base
 		./intrafont031g/libccc.o ./intrafont031g/intraFont.o \
 		./intrafont031g/libraries/graphics.o ./intrafont031g/libraries/framebuffer.o
 
-INCDIR = ../oslibmodv2
+INCDIR = hmac-sha1/src
 CFLAGS = -O0 -g -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
