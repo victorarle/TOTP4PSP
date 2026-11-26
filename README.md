@@ -25,7 +25,7 @@ Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPS
 
 Still not implemented: SHA256/SHA512, 8 digits, periods other than 30 s. Such accounts show `------` instead of a code.
 
-**Status:** the code calculation and the key file parsing are covered by a host test (see [Tests](#tests)). At the time of writing v0.1.0 has not yet been verified on PSP hardware, and the `EBOOT.PBP` committed in this repository is still the original v0.0.1 binary; build v0.1.0 from source.
+**Status:** tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP; the footer's UTC time matches the computer's. The `EBOOT.PBP` in this repository is that tested v0.1.0 build (SHA-256 `1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`); the original v0.0.1 binary is in the history at tag `v0.0.1`.
 
 ## Prerequisites
 
@@ -80,7 +80,7 @@ Prerequisites: a working installation of the [PSPDEV toolchain](https://pspdev.g
 3. Verify that `psp-config --pspdev-path` answers in your current shell
 4. Run `make` and use the generated `EBOOT.PBP` for the steps in [Installation](#installation)
 
-The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository.
+The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository. The committed `totp_4_psp.elf` was built with `-ffile-prefix-map` so it carries no local paths; it strips to the same `EBOOT.PBP` byte for byte.
 
 v0.1.0 was built with:
 
