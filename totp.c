@@ -11,6 +11,7 @@
 #include "base32/base32.h"
 
 int num_otp_keys = 0;
+int num_skipped_lines = 0;
 
 // Modified djb2 to convert string to some id
 uint8_t
@@ -23,39 +24,43 @@ lookup(char *str)
     return hash;
 }
 
-struct OTPKey * 
-readOTPFile(char *filePath)
+#define PREFIX "otpauth://totp/"
+#define PREFIX_LEN 15
+
+// Parse one line of the key file into a new OTPKey. Returns NULL when the line
+// is not a usable otpauth://totp/ entry (the caller skips it). Edits `line`.
+static struct OTPKey *
+parseOTPLine(char *line)
 {
-    struct OTPKey *head = NULL;
-    struct OTPKey **cur = &head;
+    size_t len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+        line[--len] = '\0';
 
-    FILE *filePointer;
-    uint32_t bufferLength = 2048;
-    char buffer[bufferLength]; /* not ISO 90 compatible */
+    if (strncmp(line, PREFIX, PREFIX_LEN) != 0)
+        return NULL;
+    char *query = strchr(line, '?');
+    if (query == NULL)
+        return NULL;
+    *query++ = '\0';
 
-    filePointer = fopen(filePath, "r");
+    char *alg = NULL;
+    uint8_t dig = 0;
+    char *iss = NULL;
+    uint8_t per = 0;
+    char *sec = NULL;
 
-    while (fgets(buffer, bufferLength, filePointer))
+    // Parse "name=value" pairs separated by '&'; a pair without '=' is ignored
+    char *segment = query;
+    while (segment != NULL)
     {
-        char *optauth;
-        char *rest;
-        optauth = strtok_r(buffer, "?", &rest);
-
-        char *alg = NULL;
-        uint8_t dig = 0;
-        char *iss = NULL;
-        uint8_t per = 0;
-        char *sec = NULL;
-
-        // Parse
-        while (rest != NULL)
+        char *next = strchr(segment, '&');
+        if (next != NULL)
+            *next++ = '\0';
+        char *value = strchr(segment, '=');
+        if (value != NULL)
         {
-            char *segment = strtok_r(rest, "&", &rest);
-            char *paramName;
-            char *value;
-            paramName = strtok_r(segment, "=", &value);
-
-            switch (lookup(paramName))
+            *value++ = '\0';
+            switch (lookup(segment))
             {
             case ALG:
                 alg = value;
@@ -74,32 +79,70 @@ readOTPFile(char *filePath)
                 break;
             }
         }
+        segment = next;
+    }
 
-        if ((*cur) == NULL) {
-            (*cur) = (struct OTPKey *) malloc(sizeof(struct OTPKey));
+    if (sec == NULL)
+        return NULL;
+
+    // Secret is Base32 string, so must first decode back to normal string
+    // Base32 uses 5 bits per character, but also must be multiple of 40 bits length
+    uint32_t decodedSize = ((strlen(sec) + 1) * 8 + 4) / 5;
+    char *secret = malloc(decodedSize);
+    int secretLen = base32_decode(sec, secret, decodedSize);
+    if (secretLen <= 0)
+    {
+        free(secret);
+        return NULL;
+    }
+
+    struct OTPKey *key = calloc(1, sizeof(struct OTPKey));
+    key->name = strdup(line + PREFIX_LEN);
+    if (alg != NULL)
+        key->algorithm = strdup(alg);
+    key->digits = dig;
+    key->period = per;
+    if (iss != NULL)
+        key->issuer = strdup(iss);
+    key->secret = secret;
+    key->secret_len = secretLen;
+    return key;
+}
+
+struct OTPKey *
+readOTPFile(char *filePath)
+{
+    struct OTPKey *head = NULL;
+    struct OTPKey **cur = &head;
+
+    char buffer[2048];
+    FILE *filePointer = fopen(filePath, "r");
+    if (filePointer == NULL)
+        return NULL;
+
+    while (fgets(buffer, sizeof(buffer), filePointer))
+    {
+        size_t len = strlen(buffer);
+        // Line longer than the buffer: drop all of it, not just the first chunk
+        if (len == sizeof(buffer) - 1 && buffer[len - 1] != '\n')
+        {
+            int c;
+            while ((c = fgetc(filePointer)) != EOF && c != '\n')
+                ;
+            num_skipped_lines += 1;
+            continue;
         }
-        
-        int offset = 15;
-        (*cur)->name = malloc((strlen(optauth) - offset) + 1);
-        memcpy((*cur)->name, optauth+offset, (strlen(optauth) - offset) + 1);
-        
-        (*cur)->algorithm = malloc(strlen(alg) + 1);
-        strcpy((*cur)->algorithm, alg);
-        (*cur)->digits = dig;
-        (*cur)->period = per;
-        if (iss != NULL) {
-            (*cur)->issuer = malloc(strlen(iss) + 1);
-            strcpy((*cur)->issuer, iss);
+
+        struct OTPKey *key = parseOTPLine(buffer);
+        if (key == NULL)
+        {
+            // blank lines are not worth reporting
+            if (buffer[strspn(buffer, " \t\r\n")] != '\0')
+                num_skipped_lines += 1;
+            continue;
         }
-
-        // Secret is Base32 string, so must first decode back to normal string
-        // Base32 uses 5 bits per character, but also must be multiple of 40 bits length
-        uint32_t decodedSize = ((strlen(sec) + 1) * 8 + 4) / 5;
-        (*cur)->secret = malloc(decodedSize);
-        (*cur)->secret_len = base32_decode(sec, (*cur)->secret, decodedSize);
-        (*cur)->next = NULL;
-
-        cur = &(*cur)->next;
+        *cur = key;
+        cur = &key->next;
         num_otp_keys += 1;
     }
 

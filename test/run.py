@@ -82,8 +82,8 @@ def malformadas(esperado):
         ("linha curta", b"abc\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
         ("sem '?'", b"otpauth://totp/X\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
         ("sem secret=", b"otpauth://totp/X?algorithm=SHA1&digits=6\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("sem algorithm=", b"otpauth://totp/X?digits=6&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("parametro sem '='", b"otpauth://totp/X?algorithm=SHA1&digits&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
+        ("sem algorithm=", b"otpauth://totp/X?digits=6&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "X 287082\nOK 287082\n", "falha"),  # ausente = SHA1
+        ("parametro sem '='", b"otpauth://totp/X?algorithm=SHA1&digits&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "X 287082\nOK 287082\n", "falha"),  # par ignorado, digits = padrão
         ("secret com '='", CAB.format(n="P", s=pad).encode() + b"\n", f"P {totp(k11, 59)}\n", "falha"),
         ("base32 invalido", CAB.format(n="X", s="!!!!!!!!").encode() + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
         ("linha de 3000", big + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),

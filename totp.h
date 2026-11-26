@@ -25,6 +25,7 @@ struct OTPKey
 };
 
 extern int num_otp_keys;
+extern int num_skipped_lines;  // lines of the key file that were not usable
 
 struct OTPKey *readOTPFile(char *filePath);
 uint32_t mod_hotp(uint32_t bin_code, int digits);
