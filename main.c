@@ -53,6 +53,10 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define ROW_H    30           // neighbour rows, two above and two below the band
 #define SLOTS    5            // keys on screen: the selected one and two each side
 
+// Holding Up or Down repeats the step: after REPEAT_DELAY frames, then every REPEAT_EVERY frames (60 frames a second)
+#define REPEAT_DELAY  24
+#define REPEAT_EVERY  7
+
 // Colours are 0xAABBGGRR
 #define RGBA(r, g, b, a) ((unsigned int)(a) << 24 | (unsigned int)(b) << 16 | (unsigned int)(g) << 8 | (unsigned int)(r))
 #define WHITE_A(a)  RGBA(255, 255, 255, a)
@@ -185,7 +189,8 @@ main(int argc, char **argv)
     struct OTPKey *head = readOTPFile(otpfile);
 
     int selected = 0;                  // index of the key in the band
-    unsigned int prevButtons = 0;
+    int heldDir = 0;                   // -1 Up, 1 Down, 0 neither
+    int heldFrames = 0;                // frames heldDir has lasted
     float nameX = MARGIN;              // intraFont keeps the scroll state of a long name in here
     initGraphics();
 
@@ -198,15 +203,18 @@ main(int argc, char **argv)
         sceKernelLibcTime(&now);
         counter = now / TOTP_PERIOD;
 
-        // Up/Down move the selection, one key per press
+        // Up/Down move the selection: one key per press, more while held
         sceCtrlPeekBufferPositive(&buttonInput, 1);
 #ifdef UI_PREVIEW
         static int frame = 0;
         buttonInput.Buttons = previewButtons(frame++);
 #endif
-        unsigned int pressed = buttonInput.Buttons & ~prevButtons;
-        prevButtons = buttonInput.Buttons;
-        int step = ((pressed & PSP_CTRL_DOWN) ? 1 : 0) - ((pressed & PSP_CTRL_UP) ? 1 : 0);
+        int dir = ((buttonInput.Buttons & PSP_CTRL_DOWN) ? 1 : 0) - ((buttonInput.Buttons & PSP_CTRL_UP) ? 1 : 0);
+        heldFrames = (dir == heldDir) ? heldFrames + 1 : 0;
+        heldDir = dir;
+        int step = 0;
+        if (heldFrames == 0 || (heldFrames >= REPEAT_DELAY && (heldFrames - REPEAT_DELAY) % REPEAT_EVERY == 0))
+            step = dir;
         if (step != 0 && selected + step >= 0 && selected + step < num_otp_keys)
         {
             selected += step;
