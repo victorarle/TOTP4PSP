@@ -9,7 +9,7 @@ The user must provide their own OTPAUTH_KEYS file with each line as a seperate T
 
 Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPSFSC-k?t=2512s
 
-> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1). **v0.1.0** fixed the bugs listed below; **v0.2.0** redraws the screen around one selected key, with large sharp digits, a countdown ring and analog stick support (see step 4 of [Installation](#installation)). The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* or *(v0.2.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
+> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1). **v0.1.0** fixed the bugs listed below; **v0.2.0** redraws the screen around one selected key, with large sharp digits, a countdown ring and analog stick support (see step 4 of [Installation](#installation)); **v0.2.1** decodes `%XX` escapes in account names and flags a PSP clock that was reset. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)*, *(v0.2.0)* or *(v0.2.1)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
 
 ## What v0.1.0 fixes
 
@@ -57,7 +57,7 @@ otpauth://totp/<name2>?algorithm=SHA1&digits=6&issuer=<issuer2>&period=30&secret
 
 *(v0.2.0)* The screen is built around one selected key: its name and code, in large digits, sit in a highlighted band, with a ring that empties as the code runs out (the number inside is the seconds left; ring and number turn amber for the last 5). Five keys are on screen; the others are listed smaller above and below the band. The band stays in the middle row, except near the start and the end of the list, where it moves up or down so that no row is left empty. Up/Down on the Dpad or the analog stick select the next key, and the band slides to it; hold to move faster. The top right corner shows the position in the list. The footer shows the UTC time in use, how many lines of the key file were skipped (if any) and the version.
 
-*(v0.1.0)* The screen showed 11 codes at once; the last row was a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). In either version, compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it.
+*(v0.1.0)* The screen showed 11 codes at once; the last row was a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). In either version, compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it. *(v0.2.1)* A date before 2025, as after the PSP's clock was reset, shows in amber with "clock not set?".
 
 The program only reads `OTPAUTH_KEYS`, so different versions can be installed side by side in different game folders (for example `ms0:/PSP/GAME/TOTP4PSP_V2/`). The XMB title shows the version, for example "TOTP 4 PSP v0.2.0".
 
@@ -84,7 +84,7 @@ Prerequisites: a working installation of the [PSPDEV toolchain](https://pspdev.g
 
 The project uses the PSPSDK `build.mak`, not CMake. `make` overwrites the `EBOOT.PBP` and `totp_4_psp.elf` that are committed in the repository. The committed `totp_4_psp.elf` was built with `-ffile-prefix-map` so it carries no local paths; it strips to the same program (`DATA.PSP` inside the `EBOOT.PBP`) byte for byte.
 
-v0.1.0 and v0.2.0 were built with:
+v0.1.0 and the v0.2 releases were built with:
 
 | | |
 |---|---|
