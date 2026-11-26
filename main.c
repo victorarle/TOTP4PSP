@@ -98,7 +98,7 @@ main(int argc, char **argv)
         // Must be called before any of the intraFont functions
         guStart();
 
-        time_t now;
+        time_t now = 0;
         sceKernelLibcTime(&now);
         counter = now / 30;
         // printf(" Next Refresh: %lld s \n", 30 - (now % 30));
