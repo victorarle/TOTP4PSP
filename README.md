@@ -9,7 +9,7 @@ The user must provide their own OTPAUTH_KEYS file with each line as a seperate T
 
 Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPSFSC-k?t=2512s
 
-> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes, released as **v0.1.0**. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* describe what the fork changes.
+> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes, released as **v0.1.0**. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here.
 
 ## What v0.1.0 fixes
 
@@ -113,19 +113,26 @@ All test secrets derive from the public RFC 6238 seed. Never commit a real secre
 
 The host test uses the host C library; the PSP uses newlib. It covers the logic, not the hardware.
 
-## Credits
-BenHur for [intraFont](https://github.com/PSP-Archive/intraFont)  
-[Akagi201](https://github.com/Akagi201) for [hmac-sha1 implementation](https://github.com/Akagi201/hmac-sha1)  
-Markus Gutschke for [Base32 implementation](https://github.com/google/google-authenticator-libpam/tree/master/src)  
+## Credits and licenses
 
-## Licenses
+TOTP4PSP exists because of the people below. Their code is used as published, with its licenses and headers untouched.
 
-- TOTP4PSP: ISC, see `LICENSE` (kept as published upstream)
-- `base32/`: Apache License 2.0 (header in the source files)
-- `hmac-sha1/`: MIT, see `hmac-sha1/LICENSE`
-- `intrafont031g/`: Creative Commons Attribution-Share Alike 3.0, see `intrafont031g/LICENSE`
+| Who | What | License |
+|---|---|---|
+| **Arthur Leung** ([arcyleung](https://github.com/arcyleung)) | Original author of TOTP4PSP: the program, the README text and the PSPHDC24 talk. All upstream commits in this repository's history are his and keep his authorship | ISC, see `LICENSE` |
+| Dimitri Sokolyuk | Holds the copyright line in `LICENSE` (2020), kept exactly as published upstream. The same ISC text and copyright line are published by his project [otpauth](https://github.com/dim13/otpauth), the export tool the original README recommends; the original repository does not say whether any of its code is used here | ISC |
+| BenHur | [intraFont](https://github.com/PSP-Archive/intraFont) 0.31, in `intrafont031g/`. It builds on parts of pgeFont by InsertWittyName and G-spec code by Geecko (2010), as its README and headers say | CC BY-SA 3.0, `intrafont031g/LICENSE`. The Share-Alike terms cover those files and any change to them; none was made here |
+| [Akagi201](https://github.com/Akagi201) | [hmac-sha1](https://github.com/Akagi201/hmac-sha1), the git submodule `hmac-sha1/` (copyright line: Bob Liu, 2014) | MIT, `hmac-sha1/LICENSE` |
+| Creytiv.com | `hmac_sha1.c`, the HMAC implementation inside that submodule (2010) | per its header |
+| Steve Reid and James H. Brown | `sha1.c`, SHA-1, inside that submodule | public domain, per its header |
+| Markus Gutschke / Google Inc. | [Base32 implementation](https://github.com/google/google-authenticator-libpam/tree/master/src), `base32/` (2010) | Apache 2.0, per its headers |
+| The [PSPDEV](https://pspdev.github.io/) community | The toolchain and PSPSDK (`build.mak`, `libpng`, `zlib`) the program is built with | their respective licenses |
 
-The changes made in this fork are under the same ISC terms as the program.
+Files without an author header upstream: `common/callback.*`, `intrafont031g/libraries/graphics.*` and `framebuffer.*`. Their origin is not stated in the original repository; if you recognise it, please open an issue so the credit can be added.
+
+**This fork (v0.1.0):** the fixes, the split into `totp.c`/`totp.h`, the host tests, the footer and this documentation, by Victor Arlé. Those changes are offered under the same ISC terms as the program. The `LICENSE` file is not changed; its copyright notice must stay with every copy.
+
+The specifications behind the program: [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) (TOTP) and the [Key URI Format](https://github.com/google/google-authenticator/wiki/Key-Uri-Format).
 
 ## Contact
 The original author: please reach out at arcyleung@gmail.com for feature requests or consider supporting his work over at [ko-fi](https://ko-fi.com/arcyleung).
