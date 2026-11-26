@@ -59,6 +59,10 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define RING_OUT      28
 #define LAST_SECONDS  5       // the ring turns amber when this few seconds are left
 
+// The analog stick counts as Up or Down past this distance from its centre (0-127): a worn
+// stick drifts, so not much less
+#define STICK_DEADZONE 64
+
 // Holding Up or Down repeats the step: after REPEAT_DELAY frames, then every REPEAT_EVERY frames (60 frames a second)
 #define REPEAT_DELAY  24
 #define REPEAT_EVERY  7
@@ -224,13 +228,14 @@ drawBackdrop(float bandY)
 // sequence of button presses is played, and the screen is saved to
 // ms0:/totp4psp-preview-N.png once a second.
 #define FONT_DIR "ms0:/font"
-static unsigned int
-previewButtons(int frame)
+static void
+previewInput(int frame, SceCtrlData *pad)
 {
-    if (frame == 60) return PSP_CTRL_DOWN;                    // one press
-    if (frame >= 120 && frame < 240) return PSP_CTRL_DOWN;    // held: runs to the last key
-    if (frame >= 300 && frame < 330) return PSP_CTRL_UP;      // held a little: a few keys back
-    return 0;
+    pad->Buttons = 0;
+    pad->Ly = 128;
+    if (frame == 60) pad->Buttons = PSP_CTRL_DOWN;                    // one press
+    if (frame >= 120 && frame < 240) pad->Buttons = PSP_CTRL_DOWN;    // held: runs to the last key
+    if (frame >= 300 && frame < 330) pad->Ly = 0;                     // stick up a little: a few keys back
 }
 #else
 #define FONT_DIR "flash0:/font"
@@ -301,13 +306,15 @@ main(int argc, char **argv)
         float left = secondsLeft - ((time_t)tv.tv_sec == now ? tv.tv_usec / 1000000.f : 0.f);
         unsigned int ringColor = secondsLeft <= LAST_SECONDS ? AMBER : WHITE_A(255);
 
-        // Up/Down move the selection: one key per press, more while held
+        // Up/Down or the analog stick move the selection: one key per push, more while held
         sceCtrlPeekBufferPositive(&buttonInput, 1);
 #ifdef UI_PREVIEW
         static int frame = 0;
-        buttonInput.Buttons = previewButtons(frame++);
+        previewInput(frame++, &buttonInput);
 #endif
-        int dir = ((buttonInput.Buttons & PSP_CTRL_DOWN) ? 1 : 0) - ((buttonInput.Buttons & PSP_CTRL_UP) ? 1 : 0);
+        int down = (buttonInput.Buttons & PSP_CTRL_DOWN) || buttonInput.Ly > 128 + STICK_DEADZONE;
+        int up = (buttonInput.Buttons & PSP_CTRL_UP) || buttonInput.Ly < 128 - STICK_DEADZONE;
+        int dir = down - up;
         heldFrames = (dir == heldDir) ? heldFrames + 1 : 0;
         heldDir = dir;
         int step = 0;
