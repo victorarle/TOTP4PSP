@@ -9,21 +9,21 @@ The user must provide their own OTPAUTH_KEYS file with each line as a seperate T
 
 Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPSFSC-k?t=2512s
 
-> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1). **v0.1.0** fixed the bugs listed below; **v0.2.0** redraws the screen around one selected key, with large sharp digits, a countdown ring and analog stick support (see step 4 of [Installation](#installation)); **v0.2.1** decodes `%XX` escapes in account names and flags a PSP clock that was reset. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)*, *(v0.2.0)* or *(v0.2.1)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
+> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes (v0.1.0), a new screen (v0.2.0) and decoded account names (v0.2.1); see the table below. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)*, *(v0.2.0)* or *(v0.2.1)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
 
-## What v0.1.0 fixes
-
-| v0.0.1 | v0.1.0 |
+## What the fork changes
+| v0.0.1 | This fork |
 |---|---|
-| Wrong codes for secrets of 64 bytes or more, and for secrets of more than 20 bytes that contain a zero byte. The HMAC key length was taken from `strlen()+1` instead of the decoded length. Secrets under 20 bytes read uninitialised memory | The decoded length is used. Checked for 10 to 65 bytes, with and without a zero byte |
-| The PSP powers off at "Reading OTPauth keys..." when the key file is missing or has a blank, short or malformed line | Unusable lines are skipped and counted on screen; a missing file shows where it is expected |
-| A missing `digits=` shows `000000` for every code; `digits` above 6 overflows a buffer; `algorithm` and `period` are read but ignored, so a SHA256 or 60 s account shows a valid-looking wrong code | Missing parameters default to SHA1, 6 digits, 30 s. Anything else shows `------` |
-| A secret with `=` padding, or with invalid Base32, is used anyway and reads past its buffer | Padding is cut off; invalid Base32 skips the line |
-| No way to tell which time the codes are computed from | A footer shows the UTC date and time in use and the seconds left for the current code |
-| Parameter names matched by an 8-bit hash, so unrelated names could be taken for `secret` or `digits` | Names are compared exactly |
-| Does not build from a fresh clone (broken submodule URL, missing include path) nor with GCC 14 or newer | Builds with `git clone --recurse-submodules` and `make` on the current PSPDEV toolchain |
-
-Still not implemented: SHA256/SHA512, 8 digits, periods other than 30 s. Such accounts show `------` instead of a code.
+| Wrong codes for secrets of 64 bytes or more, and for secrets of more than 20 bytes that contain a zero byte. The HMAC key length was taken from `strlen()+1` instead of the decoded length. Secrets under 20 bytes read uninitialised memory | *(v0.1.0)* The decoded length is used. Checked for 10 to 65 bytes, with and without a zero byte |
+| The PSP powers off at "Reading OTPauth keys..." when the key file is missing or has a blank, short or malformed line | *(v0.1.0)* Unusable lines are skipped and counted on screen; a missing file shows where it is expected |
+| A missing `digits=` shows `000000` for every code; `digits` above 6 overflows a buffer; `algorithm` and `period` are read but ignored, so a SHA256 or 60 s account shows a valid-looking wrong code | *(v0.1.0)* Missing parameters default to SHA1, 6 digits, 30 s. Anything else shows `------` |
+| A secret with `=` padding, or with invalid Base32, is used anyway and reads past its buffer | *(v0.1.0)* Padding is cut off; invalid Base32 skips the line |
+| No way to tell which time the codes are computed from | *(v0.1.0)* A footer shows the UTC date and time in use and the seconds left for the current code |
+| Parameter names matched by an 8-bit hash, so unrelated names could be taken for `secret` or `digits` | *(v0.1.0)* Names are compared exactly |
+| Does not build from a fresh clone (broken submodule URL, missing include path) nor with GCC 14 or newer | *(v0.1.0)* Builds with `git clone --recurse-submodules` and `make` on the current PSPDEV toolchain |
+| A plain list of small codes; Up/Down scroll it | *(v0.2.0)* The selected key in a band, with large digits and a countdown ring; the D-pad or the analog stick slide to the next key |
+| Account names show URI escapes as written (`Issuer%3Ame%40example.com`) | *(v0.2.1)* Escapes are decoded, and accented names show their accents |
+| A PSP whose clock was reset gives wrong codes with no sign of it | *(v0.2.1)* A date before 2025 shows in amber with "clock not set?" |
 
 **Status:** v0.1.0 was tested on a PSP with custom firmware on 2026-11-26: five accounts, among them one with a 64-byte secret, match a phone authenticator, and a real login used a code read from the PSP. The same 64-byte account shows a wrong code on the original v0.0.1; the footer's UTC time matches the computer's. v0.2.0 was tested on the same PSP on 2026-11-26: the accounts match, and the new screen, the D-pad, the analog stick and the slide work; v0.2.1 was checked there too before release. The `EBOOT.PBP` in this repository is v0.2.1 (SHA-256 `2f2b2e74c786bc5b1464e045b468a91bff8b6f6ab06ab2c67984090571d2a70d`), the build checked on the PSP. The code computation is the same as in v0.1.0; the key file is read the same way too, except that v0.2.1 decodes `%XX` escapes in account names. Earlier binaries are in the history at tags `v0.2.0` (`8dd155dca9c0acfb9c165bb7745dc86908f1c5eb1aa464b1148da56a4e4d4f95`), `v0.1.0` (`1da1c460277ebfcaaf1b2a97a0e798260ab157be55d0421f50101a4e2048121d`, no icon) and `v0.0.1`.
 
@@ -55,11 +55,11 @@ otpauth://totp/<name2>?algorithm=SHA1&digits=6&issuer=<issuer2>&period=30&secret
 3. Ensure the system time of the PSP is correctly set in "Settings" > "Date & Time Settings", either set manually or via internet, and also paying attention to whether Daylight Saving Time is enabled. 
 4. Launch the app from the XMB as you would with any homebrew. The screen displays up to 12 OTP codes at once but you can scroll with Up/Down on the Dpad.
 
-*(v0.2.0)* The screen is built around one selected key: its name and code, in large digits, sit in a highlighted band, with a ring that empties as the code runs out (the number inside is the seconds left; ring and number turn amber for the last 5). Five keys are on screen; the others are listed smaller above and below the band. The band stays in the middle row, except near the start and the end of the list, where it moves up or down so that no row is left empty. Up/Down on the Dpad or the analog stick select the next key, and the band slides to it; hold to move faster. The top right corner shows the position in the list. The footer shows the UTC time in use, how many lines of the key file were skipped (if any) and the version.
+*(v0.2.0)* The selected key sits in a band with its code in large digits and a ring counting down the seconds left (amber for the last 5). Up/Down or the analog stick move the selection; hold to go faster.
 
 <p align="center"><img src="docs/screen.png" width="100%" alt="Two TOTP4PSP v0.2.1 screens: the first key selected at the top of the list, and the seventh key selected with 5 seconds left, its ring turned amber" /></p>
 
-*Screens of v0.2.1 from the preview build in PPSSPP (`test/preview.sh`), with made-up accounts on the RFC 6238 sample secret: the first key selected, and the seventh with 5 s left. The digits look the same on a PSP; names, header and footer use PPSSPP's fonts, which differ from the PSP's.*
+*v0.2.1 in PPSSPP (`test/preview.sh`), made-up accounts. On a PSP the text uses the PSP's own fonts.*
 
 *(v0.1.0)* The screen showed 11 codes at once; the last row was a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). In either version, compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it. *(v0.2.1)* A date before 2025, as after the PSP's clock was reset, shows in amber with "clock not set?".
 
@@ -76,7 +76,7 @@ issuer=<any string>     <- TODO: Display it in some useful way
 secret=<base32 secret>
 ```
 
-*(v0.1.0)* An account with any other `algorithm`, `digits` or `period` is listed with `------` in place of the code. Secrets of any length work; `=` padding is accepted.
+*(v0.1.0)* SHA256/SHA512, 8 digits and periods other than 30 s are still not implemented: such an account is listed with `------` in place of the code. Secrets of any length work; `=` padding is accepted.
 
 ## Building from Source
 
