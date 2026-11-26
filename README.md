@@ -132,6 +132,8 @@ Files without an author header upstream: `common/callback.*`, `intrafont031g/lib
 
 **Changes in this fork (v0.1.0):** the fixes, the split into `totp.c`/`totp.h`, the host tests, the footer and this documentation, by Victor Arlé, released under the same ISC license as the original program. The `LICENSE` file is unchanged; keep its copyright notice with every copy.
 
+**Icon (added after v0.1.0):** `ICON0.PNG`, the 144×80 picture the XMB shows for the program, is original artwork for this fork. It is made of plain shapes drawn by a script, with no font and no third-party artwork; the script was written with Claude, Anthropic's AI assistant, and Victor Arlé chose the design. It is released under the same ISC license as the fork's other changes.
+
 The specifications behind the program: [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) (TOTP) and the [Key URI Format](https://github.com/google/google-authenticator/wiki/Key-Uri-Format).
 
 ## Contact
