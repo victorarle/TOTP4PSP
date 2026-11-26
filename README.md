@@ -57,6 +57,10 @@ otpauth://totp/<name2>?algorithm=SHA1&digits=6&issuer=<issuer2>&period=30&secret
 
 *(v0.2.0)* The screen is built around one selected key: its name and code, in large digits, sit in a highlighted band, with a ring that empties as the code runs out (the number inside is the seconds left; ring and number turn amber for the last 5). Five keys are on screen; the others are listed smaller above and below the band. The band stays in the middle row, except near the start and the end of the list, where it moves up or down so that no row is left empty. Up/Down on the Dpad or the analog stick select the next key, and the band slides to it; hold to move faster. The top right corner shows the position in the list. The footer shows the UTC time in use, how many lines of the key file were skipped (if any) and the version.
 
+<p align="center"><img src="docs/screen.png" width="100%" alt="Two TOTP4PSP v0.2.1 screens: the first key selected at the top of the list, and the seventh key selected with 5 seconds left, its ring turned amber" /></p>
+
+*Screens of v0.2.1 from the preview build in PPSSPP (`test/preview.sh`), with made-up accounts on the RFC 6238 sample secret: the first key selected, and the seventh with 5 s left. The digits look the same on a PSP; names, header and footer use PPSSPP's fonts, which differ from the PSP's.*
+
 *(v0.1.0)* The screen showed 11 codes at once; the last row was a footer such as `UTC 2026-11-26 04:08:54  6 s  v0.1.0` (the UTC time in use, the seconds left for the current code, the version). In either version, compare the UTC time with a clock you trust (`date -u` on a computer). If it is off by whole hours, the time zone or Daylight Saving setting of the PSP is wrong, and every code will be wrong with it. *(v0.2.1)* A date before 2025, as after the PSP's clock was reset, shows in amber with "clock not set?".
 
 The program only reads `OTPAUTH_KEYS`, so different versions can be installed side by side in different game folders (for example `ms0:/PSP/GAME/TOTP4PSP_V2/`). The XMB title shows the version, for example "TOTP 4 PSP v0.2.0".
