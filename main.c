@@ -51,6 +51,11 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define BAND_H   80           // height of the band
 #define ROW_H    30           // height of every other row
 #define SLOTS    5            // keys on screen
+#define LIST_H   (BAND_H + (SLOTS - 1) * ROW_H)
+
+// Changing the selection slides the band and the rows instead of jumping: each frame closes
+// this fraction of the distance left (60 frames a second; 0.25 settles in about a quarter second)
+#define ANIM_RATE 0.25f
 #define FOOT_Y   250          // footer bar
 
 // Countdown ring, at the right end of the band
@@ -241,13 +246,23 @@ previewInput(int frame, SceCtrlData *pad)
 #define FONT_DIR "flash0:/font"
 #endif
 
-// Key number `index` of the list, or NULL when there is none
-static struct OTPKey *
-keyAt(struct OTPKey *head, int index)
+// Height of row `i` while the band is at row `sel`. During the slide `sel` falls between two
+// rows, and the band's extra height is shared between them.
+static float
+rowHeight(int i, float sel)
 {
-    if (index < 0) return NULL;
-    while (head != NULL && index-- > 0) head = head->next;
-    return head;
+    float w = 1 - fabsf(i - sel);
+    return ROW_H + (BAND_H - ROW_H) * (w > 0 ? w : 0);
+}
+
+// Distance from the top of row 0 down to position `x`, a row number that may fall between rows
+static float
+rowTop(float x, float sel)
+{
+    int i, whole = (int)floorf(x);
+    float y = 0;
+    for (i = 0; i < whole; i++) y += rowHeight(i, sel);
+    return y + (x - whole) * rowHeight(whole, sel);
 }
 
 int
@@ -280,13 +295,19 @@ main(int argc, char **argv)
     struct OTPKey *head = readOTPFile(otpfile);
 
     int selected = 0;                  // index of the key in the band
+    float shownSelected = 0;           // the band as drawn: slides towards `selected`
+    float shownFirst = 0;              // the top row as drawn: slides towards the first key on screen
     int heldDir = 0;                   // -1 Up, 1 Down, 0 neither
     int heldFrames = 0;                // frames heldDir has lasted
     float nameX = MARGIN;              // intraFont keeps the scroll state of a long name in here
-    // Codes on screen ("123 456"), computed again only when the time step or the selection changes
-    char codes[SLOTS][8];
+    // The keys by number, and their codes ("123 456"), computed again when the time step changes
+    struct OTPKey **keys = calloc(num_otp_keys + 1, sizeof(*keys));
+    char (*codes)[8] = calloc(num_otp_keys + 1, sizeof(*codes));
+    if (keys == NULL || codes == NULL) sceKernelExitGame();
+    struct OTPKey *key;
+    for (i = 0, key = head; key != NULL; key = key->next) keys[i++] = key;
     uint32_t codesCounter = 0;
-    int codesFirst = -1;
+    int codesValid = 0;
     for (i = 0; i < 16; i++) digitClut[i] = WHITE_A(i * 17);
     sceKernelDcacheWritebackAll();     // the GE reads the textures and the palette from memory
     initGraphics();
@@ -332,7 +353,15 @@ main(int argc, char **argv)
         int first = selected - SLOTS / 2;
         if (first > num_otp_keys - SLOTS) first = num_otp_keys - SLOTS;
         if (first < 0) first = 0;
-        float bandY = LIST_Y + (head != NULL ? selected - first : SLOTS / 2) * ROW_H;
+
+        // Slide what is drawn towards that
+        shownSelected += (selected - shownSelected) * ANIM_RATE;
+        shownFirst += (first - shownFirst) * ANIM_RATE;
+        if (fabsf(selected - shownSelected) < 0.01f) shownSelected = selected;
+        if (fabsf(first - shownFirst) < 0.01f) shownFirst = first;
+        // Screen position of the top of row 0
+        float listTop = LIST_Y - rowTop(shownFirst, shownSelected);
+        float bandY = head != NULL ? listTop + rowTop(shownSelected, shownSelected) : LIST_Y + (SLOTS / 2) * ROW_H;
         float ringY = bandY + BAND_H / 2;
 
         drawBackdrop(bandY);
@@ -348,49 +377,58 @@ main(int argc, char **argv)
         }
 
         // "123456" is shown as "123 456"; a key that is not supported comes as "------" and shows "--- ---"
-        int slot;
-        if (counter != codesCounter || first != codesFirst)
+        if (!codesValid || counter != codesCounter)
         {
-            for (slot = 0; slot < SLOTS; slot++)
+            for (i = 0; i < num_otp_keys; i++)
             {
-                struct OTPKey *key = keyAt(head, first + slot);
                 char raw[7];
-                if (key == NULL) continue;
-                totp_code(key, counter, raw);
-                snprintf(codes[slot], sizeof(codes[slot]), "%.3s %s", raw, raw + 3);
+                totp_code(keys[i], counter, raw);
+                snprintf(codes[i], sizeof(codes[i]), "%.3s %s", raw, raw + 3);
             }
             codesCounter = counter;
-            codesFirst = first;
+            codesValid = 1;
         }
 
-        // The selected key in the band, the others in rows above and below it
-        for (slot = 0; slot < SLOTS; slot++)
+        // Each row blends between the band style (name, large code) and the row style (smaller
+        // name, small code at the right) by how much of the band it has. Rows sliding in or out
+        // fade with the part of them outside the list.
+        int top = (int)floorf(shownFirst);
+        for (i = top - 1; i <= top + SLOTS + 1; i++)
         {
-            int offset = first + slot - selected;
-            struct OTPKey *key = keyAt(head, first + slot);
-            if (key == NULL) continue;
+            if (i < 0 || i >= num_otp_keys) continue;
+            float y = listTop + rowTop(i, shownSelected);
+            float h = rowHeight(i, shownSelected);
+            float inside = (fminf(y + h, LIST_Y + LIST_H) - fmaxf(y, LIST_Y)) / h;
+            if (inside <= 0) continue;
+            if (inside > 1) inside = 1;
 
-            const char *code = codes[slot];
-            int dim = totp_supported(key) ? 255 : 140;   // "--- ---" is dimmed
+            float band = (h - ROW_H) / (BAND_H - ROW_H);   // 1 in the band, 0 in a row
+            float d = fabsf(i - shownSelected);             // rows next to the band are brighter
+            float alpha = (d < 1 ? 255 - 63 * d : d < 2 ? 192 - 64 * (d - 1) : 128) * inside * inside;
+            float dim = totp_supported(keys[i]) ? 1.0f : 0.55f;   // "--- ---" is dimmed
+            const char *code = codes[i];
+            int codeWidth = digitsWidth(&smallDigits, code);
 
-            if (offset == 0)
+            if (band < 1)
+                drawDigits(&smallDigits, 480 - MARGIN - codeWidth, y + 21 - smallDigits.baseline, code,
+                           WHITE_A((int)(alpha * dim * (1 - band) * (1 - band))));   // gone before it reaches the ring
+            if (band > 0)
             {
-                intraFontSetStyle(ltn[0], NAME_SCALE, WHITE_A(255), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
-                nameX = intraFontPrintColumn(ltn[0], nameX, bandY + 23, RING_X - RING_OUT - 12 - MARGIN, key->name);
-                drawDigits(&largeDigits, MARGIN - 2, bandY + 33, code, WHITE_A(dim));
+                // Cut at the bottom of the row, so the large code opens and closes with it
+                int clipTop = (int)fmaxf(y, 0), clipBottom = (int)fminf(y + h, 272);   // sceGuScissor takes a size
+                sceGuScissor(0, clipTop, 480, clipBottom - clipTop);
+                drawDigits(&largeDigits, MARGIN - 2, y + 33, code, WHITE_A((int)(alpha * dim * band)));
+                sceGuScissor(0, 0, 480, 272);
             }
+
+            // The selected name scrolls if it is too long; any other name is cut at its column
+            float width = band >= 0.5f ? RING_X - RING_OUT - 12 - MARGIN : 480 - 2 * MARGIN - codeWidth - 16;
+            intraFontSetStyle(ltn[0], NB_SCALE + (NAME_SCALE - NB_SCALE) * band, WHITE_A((int)alpha), SHADOW, 0.f,
+                              INTRAFONT_SCROLL_LEFT);
+            if (i == selected)
+                nameX = intraFontPrintColumn(ltn[0], nameX, y + 21 + 2 * band, width, keys[i]->name);
             else
-            {
-                // Rows next to the band are brighter than the outer ones
-                int alpha = (offset == 1 || offset == -1) ? 192 : 128;
-                float y = (offset < 0 ? bandY + offset * ROW_H : bandY + BAND_H + (offset - 1) * ROW_H) + 21;
-
-                int codeWidth = digitsWidth(&smallDigits, code);
-                drawDigits(&smallDigits, 480 - MARGIN - codeWidth, y - smallDigits.baseline, code, WHITE_A(alpha * dim / 255));
-                // A name that does not fit is cut at the code column
-                intraFontSetStyle(ltn[0], NB_SCALE, WHITE_A(alpha), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
-                intraFontPrintColumn(ltn[0], MARGIN, y, 480 - 2 * MARGIN - codeWidth - 16, key->name);
-            }
+                intraFontPrintColumn(ltn[0], MARGIN, y + 21 + 2 * band, width, keys[i]->name);
         }
 
         // Seconds left, inside the ring
@@ -444,6 +482,12 @@ main(int argc, char **argv)
         if (frame % 60 == 59 && frame < 420)
         {
             sprintf(file, "ms0:/totp4psp-preview-%d.png", frame / 60);
+            saveImage(file, getVramDisplayBuffer(), SCREEN_WIDTH, SCREEN_HEIGHT, PSP_LINE_SIZE, 0);
+        }
+        // A few frames of the slide after the single press (band moves) and during the hold (rows scroll)
+        if ((frame > 60 && frame <= 68) || (frame > 144 && frame <= 152))
+        {
+            sprintf(file, "ms0:/totp4psp-slide-%03d.png", frame);
             saveImage(file, getVramDisplayBuffer(), SCREEN_WIDTH, SCREEN_HEIGHT, PSP_LINE_SIZE, 0);
         }
 #endif

@@ -6,7 +6,8 @@
 # Works in a temporary copy of the tree, so the tracked EBOOT.PBP is not rebuilt, and gives
 # PPSSPP a home directory of its own, so your PPSSPP settings and memory stick are not touched.
 # The preview build plays a fixed sequence of button presses and saves the screen once a
-# second; the pictures end up in the directory printed at the end.
+# second, and a few frames in a row while the selection slides; the pictures end up in the
+# directory printed at the end.
 #
 # Two workarounds for PPSSPP 1.19.2, both only in this build: the fonts are PPSSPP's own,
 # copied to ms0:/font (flash0:/font does not open there), and they are read with the
@@ -57,4 +58,4 @@ printf '[General]\nFirstRun = False\nCheckForNewVersion = False\n[Graphics]\nSof
 HOME=$work/home perl -e 'alarm shift; exec @ARGV' "$SECONDS_TO_RUN" \
     "$PPSSPP/Contents/MacOS/PPSSPPSDL" --windowed "$card/PSP/GAME/TOTP4PSP/EBOOT.PBP" >"$work/ppsspp.log" 2>&1 || true
 
-ls "$card"/totp4psp-preview-*.png
+ls "$card"/totp4psp-preview-*.png "$card"/totp4psp-slide-*.png
