@@ -20,6 +20,7 @@
 
 #define VERS 1 // version
 #define REVS 0 // revision
+#define VERSION "0.1.0" // shown in the footer; keep in sync with PSP_EBOOT_TITLE in the Makefile
 
 PSP_MODULE_INFO("TOTP", PSP_MODULE_USER, VERS, REVS);
 PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
@@ -162,10 +163,12 @@ main(int argc, char **argv)
             intraFontPrint(ltn[6],5,y-4,skipmsg);
         }
 
-        // Footer: the UTC time in use, to compare with a trusted clock
+        // Footer: the UTC time in use, to compare with a trusted clock, and the version
         char clock[48];
+        char footer[64];
         totp_clock(now, clock, sizeof(clock));
-        intraFontPrint(ltn[6],x_code,20 + rows*22 - 4,clock);
+        snprintf(footer, sizeof(footer), "%s   v" VERSION, clock);
+        intraFontPrint(ltn[6],x_code,20 + rows*22 - 4,footer);
 
         // End drawing
         sceGuFinish();

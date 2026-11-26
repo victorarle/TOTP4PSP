@@ -4,7 +4,7 @@ OBJS = main.o totp.o ./hmac-sha1/src/hmac/hmac_sha1.o ./hmac-sha1/src/sha/sha1.o
 		./intrafont031g/libraries/graphics.o ./intrafont031g/libraries/framebuffer.o
 
 INCDIR = hmac-sha1/src
-CFLAGS = -O0 -g -Wall -Wno-error=incompatible-pointer-types -Wno-error=implicit-function-declaration
+CFLAGS = -O0 -g -Wall -Wno-error=implicit-function-declaration
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
@@ -13,7 +13,7 @@ LIBS = -lpspgum -lpspgu -lpng -lz -lm
 LDFLAGS = 
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = TOTP 4 PSP
+PSP_EBOOT_TITLE = TOTP 4 PSP v0.1.0
 
 PSPSDK=$(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
