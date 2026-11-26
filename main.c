@@ -53,6 +53,13 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define ROW_H    30           // neighbour rows, two above and two below the band
 #define SLOTS    5            // keys on screen: the selected one and two each side
 
+// Countdown ring, at the right end of the band
+#define RING_X        422
+#define RING_Y        (BAND_Y + BAND_H / 2)
+#define RING_IN       22
+#define RING_OUT      28
+#define LAST_SECONDS  5       // the ring turns amber when this few seconds are left
+
 // Holding Up or Down repeats the step: after REPEAT_DELAY frames, then every REPEAT_EVERY frames (60 frames a second)
 #define REPEAT_DELAY  24
 #define REPEAT_EVERY  7
@@ -62,7 +69,9 @@ char otpfile[] = "ms0:/PSP/COMMON/OTPAUTH_KEYS";
 #define WHITE_A(a)  RGBA(255, 255, 255, a)
 #define BLACK_A(a)  RGBA(0, 0, 0, a)
 #define AMBER       RGBA(255, 210, 122, 255)
-#define SHADOW      BLACK_A(115)
+// Text shadow, off. The fonts carry shadow glyphs (BLACK_A(115) would be a soft drop shadow), but
+// with PPSSPP's fonts they come out as black bars across the screen, and they are untried on a PSP.
+#define SHADOW      0U
 
 typedef struct
 {
@@ -100,6 +109,23 @@ fillRing(float cx, float cy, float r_in, float r_out, float frac, unsigned int i
         v[2 * i + 1] = (Vertex){inner, cx + r_in * s, cy + r_in * c, 0};
     }
     sceGuDrawArray(GU_TRIANGLE_STRIP, VERTEX_FORMAT, 2 * (n + 1), 0, v);
+}
+
+// The countdown ring: a dark track with `frac` of it lit, shrinking towards 12 o'clock.
+// The GU does not smooth edges, so each ring gets a 1 px rim that fades out.
+static void
+drawRing(float frac, unsigned int color)
+{
+    const unsigned int colors[2] = {BLACK_A(77), color};
+    const float fracs[2] = {1.0f, frac};
+    int i;
+    for (i = 0; i < 2; i++)
+    {
+        unsigned int clear = colors[i] & 0x00FFFFFF;
+        fillRing(RING_X, RING_Y, RING_IN - 1, RING_IN, fracs[i], clear, colors[i]);
+        fillRing(RING_X, RING_Y, RING_IN, RING_OUT, fracs[i], colors[i], colors[i]);
+        fillRing(RING_X, RING_Y, RING_OUT, RING_OUT + 1, fracs[i], colors[i], clear);
+    }
 }
 
 // Everything behind the text: backdrop, glass band, footer bar
@@ -199,9 +225,15 @@ main(int argc, char **argv)
         // Must be called before any of the intraFont functions
         guStart();
 
+        // The fraction of the second is only for the ring, read first so that it is never ahead of `now`
+        SceKernelTimeval tv = {0};
+        sceKernelLibcGettimeofday(&tv, NULL);
         time_t now = 0;
         sceKernelLibcTime(&now);
         counter = now / TOTP_PERIOD;
+        int secondsLeft = TOTP_PERIOD - now % TOTP_PERIOD;
+        float left = secondsLeft - ((time_t)tv.tv_sec == now ? tv.tv_usec / 1000000.f : 0.f);
+        unsigned int ringColor = secondsLeft <= LAST_SECONDS ? AMBER : WHITE_A(255);
 
         // Up/Down move the selection: one key per press, more while held
         sceCtrlPeekBufferPositive(&buttonInput, 1);
@@ -222,6 +254,7 @@ main(int argc, char **argv)
         }
 
         drawBackdrop();
+        if (head != NULL) drawRing(left / TOTP_PERIOD, ringColor);
 
         // Header: title and position in the list
         intraFontSetStyle(ltn[8], SMALL_SCALE, WHITE_A(217), SHADOW, 0.f, 0);
@@ -250,7 +283,7 @@ main(int argc, char **argv)
             if (offset == 0)
             {
                 intraFontSetStyle(ltn[0], NAME_SCALE, WHITE_A(255), SHADOW, 0.f, INTRAFONT_SCROLL_LEFT);
-                nameX = intraFontPrintColumn(ltn[0], nameX, BAND_Y + 23, 480 - 2 * MARGIN, key->name);
+                nameX = intraFontPrintColumn(ltn[0], nameX, BAND_Y + 23, RING_X - RING_OUT - 12 - MARGIN, key->name);
                 intraFontSetStyle(ltn[4], CODE_SCALE, WHITE_A(dim), SHADOW, 0.f, 0);
                 intraFontPrint(ltn[4], MARGIN - 2, BAND_Y + 68, code);
             }
@@ -269,6 +302,13 @@ main(int argc, char **argv)
             }
         }
 
+        // Seconds left, inside the ring
+        if (head != NULL)
+        {
+            intraFontSetStyle(ltn[4], NB_CODE_SCALE, ringColor, SHADOW, 0.f, INTRAFONT_ALIGN_CENTER);
+            intraFontPrintf(ltn[4], RING_X, RING_Y + 6, "%d", secondsLeft);
+        }
+
         // Tell the user why the list is empty instead of a blank screen
         if (head == NULL)
         {
@@ -282,6 +322,8 @@ main(int argc, char **argv)
         char clock[48];
         char skipmsg[48] = "";
         totp_clock(now, clock, sizeof(clock));
+        char *seconds = strstr(clock, "  ");   // drop the seconds left: the ring shows them
+        if (seconds != NULL) *seconds = '\0';
         if (num_skipped_lines > 0)
             sprintf(skipmsg, "%d line(s) skipped", num_skipped_lines);
         // Shrink the font if the three parts would not fit side by side

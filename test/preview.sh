@@ -26,6 +26,7 @@ mkdir -p "$work/build" "$card/PSP/GAME/TOTP4PSP" "$card/PSP/COMMON" "$card/PSP/S
 # Build
 (cd "$src" && git ls-files -z | tar -cf - --null -T -) | tar -xf - -C "$work/build"
 cp -R "$src/hmac-sha1/src" "$work/build/hmac-sha1/"
+rm -f "$work/build/EBOOT.PBP" "$work/build"/*.elf   # the tracked release build: make must not take it as up to date
 make -C "$work/build" CC="psp-gcc -DUI_PREVIEW" OBJS="main.o totp.o \
     ./hmac-sha1/src/hmac/hmac_sha1.o ./hmac-sha1/src/sha/sha1.o ./base32/base32.o ./common/callback.o \
     ./intrafont031g/libraries/graphics.o ./intrafont031g/libraries/framebuffer.o \
