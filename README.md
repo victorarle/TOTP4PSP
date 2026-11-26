@@ -9,7 +9,7 @@ The user must provide their own OTPAUTH_KEYS file with each line as a seperate T
 
 Here is a YouTube link to my PSPHDC24' talk: https://www.youtube.com/live/0rxTPSFSC-k?t=2512s
 
-> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes, released as **v0.1.0**. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here.
+> **This is a fork** of [arcyleung/TOTP4PSP](https://github.com/arcyleung/TOTP4PSP) (v0.0.1) with bug fixes, released as **v0.1.0**. The program, the talk and the original text of this README are Arthur Leung's; the section below and the notes marked *(v0.1.0)* describe what the fork changes. See [Credits and licenses](#credits-and-licenses) for everyone whose work is in here. The original repository also has an open [pull request](https://github.com/arcyleung/TOTP4PSP/pull/1) from its author with an overlapping fix for the key-length bug; this fork was developed and tested separately.
 
 ## What v0.1.0 fixes
 
