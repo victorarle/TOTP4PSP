@@ -18,7 +18,8 @@ struct OTPKey
     char *algorithm;
     uint8_t digits;
     uint8_t period;
-    char *secret;
+    char *secret;      // decoded key bytes (may contain 0x00)
+    int secret_len;    // number of decoded bytes
 
     struct OTPKey *next;
 };

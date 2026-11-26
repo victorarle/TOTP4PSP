@@ -1,7 +1,5 @@
 // Platform-independent part of TOTP4PSP: otpauth:// parsing and code calculation.
-// Moved out of main.c unchanged so it also builds on the host for testing
-// (see test/). Only change: bufLen is size_t, as hmac_sha1() expects; same
-// width as uint32_t on the PSP.
+// Lives apart from main.c so it also builds on the host for testing (see test/).
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -98,7 +96,7 @@ readOTPFile(char *filePath)
         // Base32 uses 5 bits per character, but also must be multiple of 40 bits length
         uint32_t decodedSize = ((strlen(sec) + 1) * 8 + 4) / 5;
         (*cur)->secret = malloc(decodedSize);
-        base32_decode(sec, (*cur)->secret, decodedSize);
+        (*cur)->secret_len = base32_decode(sec, (*cur)->secret, decodedSize);
         (*cur)->next = NULL;
 
         cur = &(*cur)->next;
@@ -128,18 +126,14 @@ calcToken(struct OTPKey *key, uint32_t counter)
         counter >>= 8;
     }
 
-    size_t bufLen;
-    if (strlen(key->secret) < 20) {
-        // TODO: fix with max
-        bufLen = 20 + 1UL;
-    } else {
-        bufLen = strlen(key->secret) + 1UL;
-    }
-    uint8_t output[bufLen];
+    // HMAC key is the decoded bytes, exactly secret_len of them (a 0x00 byte
+    // inside the key is data, not a terminator).
+    uint8_t output[20];
+    size_t outLen = sizeof(output);
 
-    hmac_sha1(key->secret, bufLen, text, 8, output, &bufLen);
+    hmac_sha1((const uint8_t *)key->secret, key->secret_len, text, 8, output, &outLen);
 
-    int offset = output[bufLen-1] & 0xf;
+    int offset = output[outLen-1] & 0xf;
 
     int bin_code = (output[offset] & 0x7f) << 24
         | (output[offset+1] & 0xff) << 16
