@@ -4,7 +4,7 @@ OBJS = main.o totp.o ./hmac-sha1/src/hmac/hmac_sha1.o ./hmac-sha1/src/sha/sha1.o
 		./intrafont031g/libraries/graphics.o ./intrafont031g/libraries/framebuffer.o
 
 INCDIR = hmac-sha1/src
-CFLAGS = -O0 -g -Wall -Wno-error=implicit-function-declaration
+CFLAGS = -O0 -g -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
