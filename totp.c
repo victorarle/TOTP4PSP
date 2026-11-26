@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <math.h>
+#include <strings.h>
 
 #include "totp.h"
 #include "hmac-sha1/src/hmac/hmac.h"
@@ -22,6 +22,18 @@ lookup(char *str)
     while ((c = *str++))
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     return hash;
+}
+
+// Defaults when the URI leaves a parameter out
+#define DEFAULT_DIGITS 6
+#define DEFAULT_PERIOD 30
+
+// Number from a URI parameter; 0 (never valid here) when it is not 1..255
+static uint8_t
+parseByte(const char *value)
+{
+    long v = strtol(value, NULL, 10);
+    return (v < 1 || v > 255) ? 0 : (uint8_t)v;
 }
 
 #define PREFIX "otpauth://totp/"
@@ -44,9 +56,9 @@ parseOTPLine(char *line)
     *query++ = '\0';
 
     char *alg = NULL;
-    uint8_t dig = 0;
+    uint8_t dig = DEFAULT_DIGITS;
     char *iss = NULL;
-    uint8_t per = 0;
+    uint8_t per = DEFAULT_PERIOD;
     char *sec = NULL;
 
     // Parse "name=value" pairs separated by '&'; a pair without '=' is ignored
@@ -66,13 +78,13 @@ parseOTPLine(char *line)
                 alg = value;
                 break;
             case DIG:
-                dig = strtol(value, NULL, 10);
+                dig = parseByte(value);
                 break;
             case ISS:
                 iss = value;
                 break;
             case PER:
-                per = strtol(value, NULL, 10);
+                per = parseByte(value);
                 break;
             case SEC:
                 sec = value;
@@ -150,13 +162,11 @@ readOTPFile(char *filePath)
     return head;
 }
 
+// Last 6 decimal digits; 6 is the only length supported (see totp_supported)
 uint32_t
-mod_hotp(uint32_t bin_code, int digits)
+mod_hotp(uint32_t bin_code)
 {
-    int power = pow(10, digits);
-    uint32_t otp = bin_code % power;
-
-    return otp;
+    return bin_code % 1000000;
 }
 
 int
@@ -184,4 +194,23 @@ calcToken(struct OTPKey *key, uint32_t counter)
         | (output[offset+3] & 0xff);
 
     return bin_code;
+}
+
+// Only SHA1, 6 digits, 30 s are implemented; anything else must not show a
+// code that would look valid but be wrong.
+int
+totp_supported(const struct OTPKey *key)
+{
+    return (key->algorithm == NULL || strcasecmp(key->algorithm, "SHA1") == 0)
+        && key->digits == DEFAULT_DIGITS
+        && key->period == DEFAULT_PERIOD;
+}
+
+void
+totp_code(struct OTPKey *key, uint32_t counter, char out[7])
+{
+    if (totp_supported(key))
+        snprintf(out, 7, "%06lu", (unsigned long)mod_hotp(calcToken(key, counter)));
+    else
+        strcpy(out, "------");
 }

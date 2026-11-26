@@ -101,6 +101,30 @@ def malformadas(esperado):
     return linhas, falhas
 
 
+def parametros(esperado):
+    def linha(params):
+        return ("otpauth://totp/P?" + "&".join(params + ["secret=" + B32]) + "\n").encode()
+    casos = [  # nome, parâmetros, saída certa, o que o v0.0.1 deve fazer (ok|falha)
+        ("SHA1 minusculo", ["algorithm=sha1", "digits=6", "period=30"], "P 287082\n", "ok"),
+        ("digits ausente", ["algorithm=SHA1", "period=30"], "P 287082\n", "falha"),
+        ("period ausente", ["algorithm=SHA1", "digits=6"], "P 287082\n", "ok"),
+        ("SHA256", ["algorithm=SHA256", "digits=6", "period=30"], "P ------\n", "falha"),
+        ("8 digitos", ["algorithm=SHA1", "digits=8", "period=30"], "P ------\n", "falha"),
+        ("digits=262", ["algorithm=SHA1", "digits=262", "period=30"], "P ------\n", "falha"),
+        ("period=60", ["algorithm=SHA1", "digits=6", "period=60"], "P ------\n", "falha"),
+    ]
+    linhas, falhas = [], 0
+    for nome, params, certo, prev in casos:
+        st, saida = roda(linha(params))
+        real = "ok" if st == "ok" and saida == certo else "falha"
+        quer = "ok" if esperado == "corrigido" else prev
+        bate = real == quer
+        falhas += not bate
+        det = "" if real == "ok" else (f"{st}: {saida}" if st != "ok" else f"saída {saida!r}")
+        linhas.append(f"{'ok ' if bate else 'XX '} {nome:<18} real={real:<5} esperado={quer:<5} {det[:70]}")
+    return linhas, falhas
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--esperado", choices=("v0.0.1", "corrigido"), default="v0.0.1")
@@ -108,7 +132,7 @@ if __name__ == "__main__":
     if not os.path.exists(HOST):
         sys.exit("falta test/host: make -C test")
     total = 0
-    for titulo, f in (("Matriz de tamanhos (RFC 6238, 4 instantes cada)", matriz), ("Linhas malformadas", malformadas)):
+    for titulo, f in (("Matriz de tamanhos (RFC 6238, 4 instantes cada)", matriz), ("Linhas malformadas", malformadas), ("Parâmetros da URI", parametros)):
         ls, fl = f(a.esperado)
         print(f"\n{titulo}  [esperado: {a.esperado}]")
         print("\n".join(ls))

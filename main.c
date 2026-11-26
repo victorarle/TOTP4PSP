@@ -133,9 +133,8 @@ main(int argc, char **argv)
         
         while (cur != NULL && shown < 12)
         {   
-            int code = calcToken(cur, counter);
             char strcode[7];
-            sprintf(strcode, "%06ld", mod_hotp(code, cur->digits));
+            totp_code(cur, counter, strcode);
             intraFontPrint(ltn[6],x_label,y-4,cur->name);
             intraFontPrint(ltn[8],x_code,y,strcode);
             y += 22;
