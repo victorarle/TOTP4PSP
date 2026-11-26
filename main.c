@@ -218,6 +218,10 @@ main(int argc, char **argv)
     int heldDir = 0;                   // -1 Up, 1 Down, 0 neither
     int heldFrames = 0;                // frames heldDir has lasted
     float nameX = MARGIN;              // intraFont keeps the scroll state of a long name in here
+    // Codes on screen ("123 456"), computed again only when the time step or the selection changes
+    char codes[SLOTS][8];
+    uint32_t codesCounter = 0;
+    int codesSelected = -1;
     initGraphics();
 
     while (isRunning())
@@ -265,20 +269,31 @@ main(int argc, char **argv)
             intraFontPrintf(ltn[8], 480 - MARGIN, 19, "%d / %d", selected + 1, num_otp_keys);
         }
 
-        // The selected key sits in the band, two neighbours above and two below it
+        // "123456" is shown as "123 456"; a key that is not supported comes as "------" and shows "--- ---"
         int slot;
+        if (counter != codesCounter || selected != codesSelected)
+        {
+            for (slot = 0; slot < SLOTS; slot++)
+            {
+                struct OTPKey *key = keyAt(head, selected + slot - SLOTS / 2);
+                char raw[7];
+                if (key == NULL) continue;
+                totp_code(key, counter, raw);
+                snprintf(codes[slot], sizeof(codes[slot]), "%.3s %s", raw, raw + 3);
+            }
+            codesCounter = counter;
+            codesSelected = selected;
+        }
+
+        // The selected key sits in the band, two neighbours above and two below it
         for (slot = 0; slot < SLOTS; slot++)
         {
             int offset = slot - SLOTS / 2;
             struct OTPKey *key = keyAt(head, selected + offset);
             if (key == NULL) continue;
 
-            // "123456" is shown as "123 456"; a key that is not supported shows "--- ---", dimmed
-            char raw[7];
-            char code[8];
-            totp_code(key, counter, raw);
-            snprintf(code, sizeof(code), "%.3s %s", raw, raw + 3);
-            int dim = totp_supported(key) ? 255 : 140;
+            const char *code = codes[slot];
+            int dim = totp_supported(key) ? 255 : 140;   // "--- ---" is dimmed
 
             if (offset == 0)
             {
