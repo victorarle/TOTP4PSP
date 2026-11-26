@@ -1,166 +1,161 @@
 #!/usr/bin/env python3
-"""Teste nativo do totp.c (build: make -C test).
+"""Host test for totp.c (build: make -C test).
 
-    python3 test/run.py                          # compila e espera tudo certo
-    python3 test/run.py --esperado v0.0.1 --host BIN  # binário do código antigo: espera os defeitos conhecidos
+    python3 test/run.py                           # build, expect everything right
+    python3 test/run.py --expect v0.0.1 --host BIN  # binary built from the unfixed code: expect the known defects
 
-Só segredos públicos (semente da RFC 6238). Sai com 0 se o resultado bate com
-o esperado do modo escolhido.
+Public secrets only (the RFC 6238 seed). Exits 0 if the result matches what
+the chosen mode expects.
 """
 import argparse, base64, hashlib, hmac, os, struct, subprocess, sys, tempfile
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
-from gerar_vetores import RFC, totp  # noqa: E402
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from gen_vectors import RFC, totp  # noqa: E402
 
-HOST = os.path.join(AQUI, "host")
+HOST = os.path.join(HERE, "host")
 ENV = dict(os.environ, ASAN_OPTIONS="detect_leaks=0")
-CAB = "otpauth://totp/{n}?algorithm=SHA1&digits=6&issuer=T&period=30&secret={s}"
+URI = "otpauth://totp/{n}?algorithm=SHA1&digits=6&issuer=T&period=30&secret={s}"
 B32 = base64.b32encode(RFC).decode().rstrip("=")
-VALIDA = CAB.format(n="OK", s=B32).encode()  # t=59 -> "OK 287082"
+VALID = URI.format(n="OK", s=B32).encode()  # t=59 -> "OK 287082"
 
 
-def roda(conteudo, t=59):
-    """Roda o host sobre um arquivo; devolve ('ok', saída) ou ('crash'|'travou', detalhe)."""
+def run(content, t=59):
+    """Run the host binary on a key file; returns ('ok', stdout) or ('crash'|'hang', detail)."""
     with tempfile.TemporaryDirectory() as d:
-        caminho = os.path.join(d, "OTPAUTH_KEYS")
-        if conteudo is not None:
-            open(caminho, "wb").write(conteudo)
+        path = os.path.join(d, "OTPAUTH_KEYS")
+        if content is not None:
+            open(path, "wb").write(content)
         try:
-            p = subprocess.run([HOST, caminho, str(t)], capture_output=True, env=ENV, timeout=10)
+            p = subprocess.run([HOST, path, str(t)], capture_output=True, env=ENV, timeout=10)
         except subprocess.TimeoutExpired:
-            return "travou", ""
+            return "hang", ""
     if p.returncode != 0:
-        linha = next((l for l in p.stderr.decode(errors="replace").splitlines() if "Sanitizer" in l or "runtime error" in l), f"rc={p.returncode}")
-        return "crash", linha.strip()[:80]
+        line = next((l for l in p.stderr.decode(errors="replace").splitlines() if "Sanitizer" in l or "runtime error" in l), f"rc={p.returncode}")
+        return "crash", line.strip()[:80]
     return "ok", p.stdout.decode()
 
 
-def emula_v001(k: bytes):
-    """Prevê o v0.0.1 (defeito 1): 'OK', 'ERRADO' ou 'INDEF' (lê memória não inicializada)."""
+def emulate_v001(k: bytes):
+    """Predict v0.0.1 (defect 1): 'OK', 'WRONG' or 'UNDEF' (reads uninitialised memory)."""
     d = k + b"\0"
-    comp = d.index(b"\0")
-    buflen = 21 if comp < 20 else comp + 1
+    strlen = d.index(b"\0")
+    buflen = 21 if strlen < 20 else strlen + 1
     if buflen > len(k) + 1:
-        return "INDEF"
-    usada = d[:buflen]
-    return "OK" if totp(usada, 59) == totp(k, 59) and totp(usada, 1234567890) == totp(k, 1234567890) else "ERRADO"
+        return "UNDEF"
+    used = d[:buflen]
+    return "OK" if totp(used, 59) == totp(k, 59) and totp(used, 1234567890) == totp(k, 1234567890) else "WRONG"
 
 
-def matriz(esperado):
-    linhas, falhas = [], 0
-    casos = {}
-    for l in open(os.path.join(AQUI, "vetores.txt")):
-        n, var, t, cod, b32 = l.split()
-        casos.setdefault((int(n), var, b32), []).append((int(t), cod))
-    for (n, var, b32), vet in casos.items():
+def matrix(expect):
+    lines, failures = [], 0
+    cases = {}
+    for l in open(os.path.join(HERE, "vectors.txt")):
+        n, var, t, code, b32 = l.split()
+        cases.setdefault((int(n), var, b32), []).append((int(t), code))
+    for (n, var, b32), vec in cases.items():
         k = base64.b32decode(b32 + "=" * (-len(b32) % 8))
-        prev = emula_v001(k)
-        reais = []
-        for t, cod in vet:
-            st, saida = roda(CAB.format(n="K", s=b32).encode() + b"\n", t)
-            reais.append("CRASH" if st != "ok" else ("OK" if saida.strip() == "K " + cod else "ERRADO"))
-        real = "OK" if set(reais) == {"OK"} else ("CRASH" if "CRASH" in reais else "ERRADO")
-        if esperado == "corrigido":
-            bate = real == "OK"; quer = "OK"
+        predicted = emulate_v001(k)
+        actuals = []
+        for t, code in vec:
+            st, out = run(URI.format(n="K", s=b32).encode() + b"\n", t)
+            actuals.append("CRASH" if st != "ok" else ("OK" if out.strip() == "K " + code else "WRONG"))
+        actual = "OK" if set(actuals) == {"OK"} else ("CRASH" if "CRASH" in actuals else "WRONG")
+        if expect == "fixed":
+            match = actual == "OK"; want = "OK"
         else:
-            # INDEF: lê memória não inicializada; qualquer resultado sem crash vale
-            bate = real != "CRASH" if prev == "INDEF" else real == prev; quer = prev
-        falhas += not bate
-        linhas.append(f"{'ok ' if bate else 'XX '} {n:>3} bytes {'com zero ' if var == 'z' else 'sem zero '} real={real:<6} esperado={quer}")
-    return linhas, falhas
+            # UNDEF: reads uninitialised memory; any result without a crash is fine
+            match = actual != "CRASH" if predicted == "UNDEF" else actual == predicted; want = predicted
+        failures += not match
+        lines.append(f"{'ok ' if match else 'XX '} {n:>3} bytes {'with zero ' if var == 'z' else 'no zero   '} actual={actual:<6} expected={want}")
+    return lines, failures
 
 
-def malformadas(esperado):
+def report(cases, expect, lines, failures):
+    """Shared by the groups below: case = (name, file content, right output, what v0.0.1 does: ok|fail)."""
+    for name, content, right, prev in cases:
+        st, out = run(content)
+        actual = "ok" if st == "ok" and out == right else "fail"
+        want = "ok" if expect == "fixed" else prev
+        match = actual == want
+        failures += not match
+        detail = "" if actual == "ok" else (f"{st}: {out}" if st != "ok" else f"output {out!r}")
+        lines.append(f"{'ok ' if match else 'XX '} {name:<26} actual={actual:<5} expected={want:<5} {detail[:70]}")
+    return lines, failures
+
+
+def malformed(expect):
     big = b"otpauth://totp/" + b"A" * 3000
     k11 = RFC[:11]
-    pad = base64.b32encode(k11).decode()  # termina em ======
-    casos = [  # nome, conteúdo, saída certa, o que o v0.0.1 deve fazer (ok|falha)
-        ("arquivo ausente", None, "", "falha"),
-        ("arquivo vazio", b"", "", "ok"),
-        ("linha em branco", b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("linha curta", b"abc\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("sem '?'", b"otpauth://totp/X\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("sem secret=", b"otpauth://totp/X?algorithm=SHA1&digits=6\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("sem algorithm=", b"otpauth://totp/X?digits=6&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "X 287082\nOK 287082\n", "falha"),  # ausente = SHA1
-        ("parametro sem '='", b"otpauth://totp/X?algorithm=SHA1&digits&secret=" + B32.encode() + b"\n" + VALIDA + b"\n", "X 287082\nOK 287082\n", "falha"),  # par ignorado, digits = padrão
-        ("secret com '='", CAB.format(n="P", s=pad).encode() + b"\n", f"P {totp(k11, 59)}\n", "falha"),
-        ("base32 invalido", CAB.format(n="X", s="!!!!!!!!").encode() + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("linha de 3000", big + b"\n" + VALIDA + b"\n", "OK 287082\n", "falha"),
-        ("CRLF", VALIDA + b"\r\n", "OK 287082\n", "ok"),
+    pad = base64.b32encode(k11).decode()  # ends in ======
+    cases = [
+        ("missing file", None, "", "fail"),
+        ("empty file", b"", "", "ok"),
+        ("blank line", b"\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("short line", b"abc\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("no '?'", b"otpauth://totp/X\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("no secret=", b"otpauth://totp/X?algorithm=SHA1&digits=6\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("no algorithm=", b"otpauth://totp/X?digits=6&secret=" + B32.encode() + b"\n" + VALID + b"\n", "X 287082\nOK 287082\n", "fail"),  # missing = SHA1
+        ("parameter without '='", b"otpauth://totp/X?algorithm=SHA1&digits&secret=" + B32.encode() + b"\n" + VALID + b"\n", "X 287082\nOK 287082\n", "fail"),  # pair ignored, digits = default
+        ("secret with '='", URI.format(n="P", s=pad).encode() + b"\n", f"P {totp(k11, 59)}\n", "fail"),
+        ("invalid base32", URI.format(n="X", s="!!!!!!!!").encode() + b"\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("3000 character line", big + b"\n" + VALID + b"\n", "OK 287082\n", "fail"),
+        ("CRLF", VALID + b"\r\n", "OK 287082\n", "ok"),
     ]
-    linhas, falhas = [], 0
-    for nome, cont, certo, prev in casos:
-        st, saida = roda(cont)
-        real = "ok" if st == "ok" and saida == certo else "falha"
-        quer = "ok" if esperado == "corrigido" else prev
-        bate = real == quer
-        falhas += not bate
-        det = "" if real == "ok" else (f"{st}: {saida}" if st != "ok" else f"saída {saida!r}")
-        linhas.append(f"{'ok ' if bate else 'XX '} {nome:<18} real={real:<5} esperado={quer:<5} {det[:70]}")
-    return linhas, falhas
+    return report(cases, expect, [], 0)
 
 
-def parametros(esperado):
-    def linha(params, depois=()):
-        return ("otpauth://totp/P?" + "&".join(params + ["secret=" + B32] + list(depois)) + "\n").encode()
-    casos = [  # nome, parâmetros, saída certa, o que o v0.0.1 deve fazer (ok|falha)
-        ("SHA1 minusculo", ["algorithm=sha1", "digits=6", "period=30"], "P 287082\n", "ok"),
-        ("digits ausente", ["algorithm=SHA1", "period=30"], "P 287082\n", "falha"),
-        ("period ausente", ["algorithm=SHA1", "digits=6"], "P 287082\n", "ok"),
-        ("SHA256", ["algorithm=SHA256", "digits=6", "period=30"], "P ------\n", "falha"),
-        ("8 digitos", ["algorithm=SHA1", "digits=8", "period=30"], "P ------\n", "falha"),
-        ("digits=262", ["algorithm=SHA1", "digits=262", "period=30"], "P ------\n", "falha"),
-        ("period=60", ["algorithm=SHA1", "digits=6", "period=60"], "P ------\n", "falha"),
-        # "nx" tem o mesmo hash de 8 bits que "secret" (defeito 9): deve ser ignorado
-        ("nome com hash de secret", ["algorithm=SHA1", "digits=6", "period=30"], "P 287082\n", "falha", ["nx=!!!!!!!!"]),
+def parameters(expect):
+    def line(params, after=()):
+        return ("otpauth://totp/P?" + "&".join(params + ["secret=" + B32] + list(after)) + "\n").encode()
+    cases = [
+        ("lowercase sha1", line(["algorithm=sha1", "digits=6", "period=30"]), "P 287082\n", "ok"),
+        ("digits missing", line(["algorithm=SHA1", "period=30"]), "P 287082\n", "fail"),
+        ("period missing", line(["algorithm=SHA1", "digits=6"]), "P 287082\n", "ok"),
+        ("SHA256", line(["algorithm=SHA256", "digits=6", "period=30"]), "P ------\n", "fail"),
+        ("8 digits", line(["algorithm=SHA1", "digits=8", "period=30"]), "P ------\n", "fail"),
+        ("digits=262", line(["algorithm=SHA1", "digits=262", "period=30"]), "P ------\n", "fail"),
+        ("period=60", line(["algorithm=SHA1", "digits=6", "period=60"]), "P ------\n", "fail"),
+        # "nx" has the same 8-bit hash as "secret" (defect 9): it must be ignored
+        ("name hashing like secret", line(["algorithm=SHA1", "digits=6", "period=30"], ["nx=!!!!!!!!"]), "P 287082\n", "fail"),
     ]
-    linhas, falhas = [], 0
-    for nome, params, certo, prev, *depois in casos:
-        st, saida = roda(linha(params, *depois))
-        real = "ok" if st == "ok" and saida == certo else "falha"
-        quer = "ok" if esperado == "corrigido" else prev
-        bate = real == quer
-        falhas += not bate
-        det = "" if real == "ok" else (f"{st}: {saida}" if st != "ok" else f"saída {saida!r}")
-        linhas.append(f"{'ok ' if bate else 'XX '} {nome:<18} real={real:<5} esperado={quer:<5} {det[:70]}")
-    return linhas, falhas
+    return report(cases, expect, [], 0)
 
 
-def relogio(esperado):
-    casos = [  # instante, rodapé certo (date -u -r <instante>)
+def clock(expect):
+    cases = [  # time, right footer (compare with: date -u -r <time>)
         (59, "UTC 1970-01-01 00:00:59  1 s"),
         (60, "UTC 1970-01-01 00:01:00  30 s"),
         (1111111109, "UTC 2005-03-18 01:58:29  1 s"),
         (2000000000, "UTC 2033-05-18 03:33:20  10 s"),
-        (4102444800, "UTC 2100-01-01 00:00:00  30 s"),  # além de 2038
+        (4102444800, "UTC 2100-01-01 00:00:00  30 s"),  # past 2038
     ]
-    linhas, falhas = [], 0
-    for t, certo in casos:
+    lines, failures = [], 0
+    for t, right in cases:
         p = subprocess.run([HOST, "--clock", str(t)], capture_output=True, env=ENV)
-        saida = p.stdout.decode().strip()
-        real = "ok" if p.returncode == 0 and saida == certo else "falha"
-        quer = "ok" if esperado == "corrigido" else "falha"  # o v0.0.1 não tem rodapé
-        bate = real == quer
-        falhas += not bate
-        linhas.append(f"{'ok ' if bate else 'XX '} t={t:<11} real={real:<5} esperado={quer:<5} {'' if real == 'ok' else repr(saida)[:60]}")
-    return linhas, falhas
+        out = p.stdout.decode().strip()
+        actual = "ok" if p.returncode == 0 and out == right else "fail"
+        want = "ok" if expect == "fixed" else "fail"  # v0.0.1 has no footer
+        match = actual == want
+        failures += not match
+        lines.append(f"{'ok ' if match else 'XX '} t={t:<11} actual={actual:<5} expected={want:<5} {'' if actual == 'ok' else repr(out)[:60]}")
+    return lines, failures
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--esperado", choices=("v0.0.1", "corrigido"), default="corrigido")
-    ap.add_argument("--host", help="binário já compilado (para rodar contra código antigo)")
+    ap.add_argument("--expect", choices=("v0.0.1", "fixed"), default="fixed")
+    ap.add_argument("--host", help="prebuilt binary (to run against older code)")
     a = ap.parse_args()
     if a.host:
         HOST = os.path.abspath(a.host)
     else:
-        subprocess.run(["make", "-C", AQUI], check=True, capture_output=True)
+        subprocess.run(["make", "-C", HERE], check=True, capture_output=True)
     total = 0
-    for titulo, f in (("Matriz de tamanhos (RFC 6238, 4 instantes cada)", matriz), ("Linhas malformadas", malformadas), ("Parâmetros da URI", parametros), ("Rodapé com a hora UTC", relogio)):
-        ls, fl = f(a.esperado)
-        print(f"\n{titulo}  [esperado: {a.esperado}]")
+    for title, f in (("Key size matrix (RFC 6238, 4 times each)", matrix), ("Malformed lines", malformed), ("URI parameters", parameters), ("UTC footer", clock)):
+        ls, fl = f(a.expect)
+        print(f"\n{title}  [expect: {a.expect}]")
         print("\n".join(ls))
         total += fl
-    print(f"\n{'TUDO COMO ESPERADO' if not total else str(total) + ' DIVERGÊNCIA(S) do esperado'} (modo {a.esperado})")
+    print(f"\n{'ALL AS EXPECTED' if not total else str(total) + ' MISMATCH(ES) with what was expected'} (mode {a.expect})")
     sys.exit(1 if total else 0)
