@@ -13,17 +13,6 @@
 int num_otp_keys = 0;
 int num_skipped_lines = 0;
 
-// Modified djb2 to convert string to some id
-uint8_t
-lookup(char *str)
-{
-    uint8_t hash = 31;
-    uint8_t c;
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-    return hash;
-}
-
 // Defaults when the URI leaves a parameter out
 #define DEFAULT_DIGITS 6
 #define DEFAULT_PERIOD 30
@@ -72,24 +61,16 @@ parseOTPLine(char *line)
         if (value != NULL)
         {
             *value++ = '\0';
-            switch (lookup(segment))
-            {
-            case ALG:
+            if (strcmp(segment, "algorithm") == 0)
                 alg = value;
-                break;
-            case DIG:
+            else if (strcmp(segment, "digits") == 0)
                 dig = parseByte(value);
-                break;
-            case ISS:
+            else if (strcmp(segment, "issuer") == 0)
                 iss = value;
-                break;
-            case PER:
+            else if (strcmp(segment, "period") == 0)
                 per = parseByte(value);
-                break;
-            case SEC:
+            else if (strcmp(segment, "secret") == 0)
                 sec = value;
-                break;
-            }
         }
         segment = next;
     }

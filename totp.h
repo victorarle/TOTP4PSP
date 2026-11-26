@@ -3,13 +3,6 @@
 
 #include <stdint.h>
 
-// Supported parameter fields of the otpauth://totp/ string
-#define ALG 70
-#define DIG 67
-#define ISS 26
-#define PER 66
-#define SEC 133
-
 // Simple linked list of TOTP key field info, appended as they are parsed from the file
 struct OTPKey
 {
